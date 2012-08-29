@@ -207,7 +207,7 @@ class Engine(object):
         is_issue = raw_input("Is this feature answering an issue? [y/N] ") == 'y'
 
         base = self._cr.get('flowhub "structure"', 'develop')
-        head = branch_name
+        head = "{}:{}".format(self._gh.get_user().login,branch_name)
 
         if not is_issue:
             title = raw_input("Title: ")
