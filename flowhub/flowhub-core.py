@@ -85,12 +85,17 @@ class Engine(object):
                 print "Storing configuration in {}".format(self._config)
             self._c.write(f)
 
-    def publish_feature(self):
+    def _get_repo(self):
+        """Get the repository of this directory, or error out if not found"""
         repo_dir = commands.getoutput("git rev-parse --show-toplevel")
         if repo_dir.startswith('fatal'):
             raise RuntimeError("You don't appear to be in a git repository.")
 
         repo = git.Repo(repo_dir)
+        return repo
+
+    def publish_feature(self):
+        repo = self._get_repo()
         gh = repo.remote(self._c.get('structure', 'gh_remote'))
 
     def create_release(self):
@@ -116,14 +121,16 @@ class Engine(object):
         # delete hotfix branches
         pass
 
-    def create_feature(self):
+    def create_feature(self, name=None, create_tracking_branch=True):
+        if name is None:
+            raise RuntimeError("Please provide a feature name.")
+
+        if self.__debug > 0:
+            print "Creating new feature branch..."
         # Checkout develop
         # checkout -b feature_prefix+branch_name
         # push -u origin feature_prefix+branch_name
-        pass
 
-    def rollback_branch(self, branch_name='master'):
-        pass
 
     def prepare_release(self):
         pass
@@ -147,19 +154,37 @@ class Engine(object):
 
 
 def handle_feature_call(args, engine):
-    print "handline feature"
+    if args.verbosity > 1:
+        print "handling feature"
+    if args.action == 'start':
+        engine.create_feature(
+            name=args.name,
+            create_tracking_branch=(not args.no_track),
+        )
+
+    elif args.action == 'switch':
+        return
+
+    elif args.action == 'publish':
+        engine.publish_feature()
+
+    else:
+        raise RuntimeError("Unrecognized command for features: {}".format(args.action))
 
 
 def handle_hotfix_call(args, engine):
-    print "handling hotfix"
+    if args.verbosity > 1:
+        print "handling hotfix"
 
 
 def handle_release_call(args, engine):
-    print "handling release"
+    if args.verbosity > 1:
+        print "handling release"
 
 
 def handle_cleanup_call(args, engine):
-    print "handling cleanup"
+    if args.verbosity > 1:
+        print "handling cleanup"
 
 
 if __name__ == "__main__":
@@ -207,6 +232,8 @@ if __name__ == "__main__":
     cleanup_subs = cleanup.add_subparsers()
 
     args = parser.parse_args()
+    if args.verbosity > 1:
+        print "Args: ", args
 
     e = Engine(debug=args.verbosity)
 
