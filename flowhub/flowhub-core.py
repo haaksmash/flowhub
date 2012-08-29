@@ -209,7 +209,7 @@ class Engine(object):
         prs = [x for x in self._gh_repo.parent.get_pulls('open') if x.head.label == head]
         if prs:
             print "New commits added to existing pull-request."
-            print "url: {}".format(prs[0].url)
+            print "url: {}".format(prs[0].issue_url)
             return
 
         print "Setting up the pull-request..."
@@ -235,7 +235,7 @@ class Engine(object):
                 base=base,
                 head=head,
             )
-        print "url: {}".format(pr.url)
+        print "url: {}".format(pr.issue_url)
 
     def create_release(self):
         # checkout develop
