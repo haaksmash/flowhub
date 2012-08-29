@@ -206,8 +206,8 @@ class Engine(object):
         print "Setting up the pull-request..."
         is_issue = raw_input("Is this feature answering an issue? [y/N] ") == 'y'
 
-        base = branch_name
-        head = self._cr.get('flowhub "structure"', 'develop')
+        base = self._cr.get('flowhub "structure"', 'develop')
+        head = branch_name
 
         if not is_issue:
             title = raw_input("Title: ")
@@ -215,7 +215,7 @@ class Engine(object):
 
             if self.__debug > 1:
                 print (title, body, base, head)
-            pr = self._gh_repo.create_pull(
+            pr = self._gh_repo.parent.create_pull(
                 title=title,
                 body=body,
                 base=base,
@@ -223,8 +223,8 @@ class Engine(object):
             )
         else:
             issue_number = raw_input("Issue number: ")
-            issue = self._gh_repo.get_issue(int(issue_number))
-            pr = self._gh_repo.create_pull(
+            issue = self._gh_repo.parent.get_issue(int(issue_number))
+            pr = self._gh_repo.parent.create_pull(
                 issue=issue,
                 base=base,
                 head=head,
