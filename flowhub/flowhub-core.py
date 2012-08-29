@@ -153,10 +153,10 @@ class Engine(object):
         # Checkout the branch.
         branch[0].checkout()
 
-        print (
+        print '\n'.join(
             "Summary of actions: ",
             "\tNew branch {} created, from branch {}".format(branch_name, self._cr.get('flowhub "structure"', 'develop')),
-            ""
+            "Switched to branch {}".format(branch_name),
         )
 
     def prepare_release(self):
