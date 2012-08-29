@@ -161,7 +161,13 @@ class Engine(object):
 
     def abandon_feature(self, name=None):
         if name is None:
-            raise RuntimeError("Please provide a feature name.")
+            # If no name specified, try to use the currently checked-out branch,
+            # but only if it's a feature branch.
+            name = self._repo.head.reference.name
+            if self._cr.get('flowhub "prefix"', 'feature') not in name:
+                raise RuntimeError("Please provide a feature name, or switch to a feature branch.")
+
+            name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
         if self.__debug > 0:
             print "Abandoning feature branch..."
@@ -197,6 +203,15 @@ class Engine(object):
         ))
 
     def publish_feature(self, name):
+        if name is None:
+            # If no name specified, try to use the currently checked-out branch,
+            # but only if it's a feature branch.
+            name = self._repo.head.reference.name
+            if self._cr.get('flowhub "prefix"', 'feature') not in name:
+                raise RuntimeError("Please provide a feature name, or switch to a feature branch.")
+
+            name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
+
         branch_name = "{}{}".format(
             self._cr.get('flowhub "prefix"', 'feature'),
             name
@@ -373,13 +388,15 @@ if __name__ == "__main__":
     fwork.add_argument('name', help="name of feature to switch to")
     fpublish = feature_subs.add_parser('publish',
         help="send the current feature branch to origin and create a pull-request")
-    fpublish.add_argument('name',
-        help='name of feature to publish.')
+    fpublish.add_argument('name', nargs='?',
+        default=None,
+        help='name of feature to publish. If not given, uses current feature')
     fabandon = feature_subs.add_parser('abandon',
         help="remove a feature branch completely"
     )
-    fabandon.add_argument('name',
-        help="name of the feature to abandon")
+    fabandon.add_argument('name', nargs='?',
+        default=None,
+        help="name of the feature to abandon. If not given, uses current feature")
 
     hotfix_subs = hotfix.add_subparsers(dest='action')
     hstart = hotfix_subs.add_parser('start',
