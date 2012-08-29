@@ -156,7 +156,7 @@ class Engine(object):
         print '\n'.join((
             "Summary of actions: ",
             "\tNew branch {} created, from branch {}".format(branch_name, self._cr.get('flowhub "structure"', 'develop')),
-            "Switched to branch {}".format(branch_name),
+            "\tSwitched to branch {}".format(branch_name),
         ))
 
     def prepare_release(self):
