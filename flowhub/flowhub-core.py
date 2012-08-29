@@ -155,7 +155,7 @@ class Engine(object):
 
         print (
             "Summary of actions: ",
-            "\tNew branch {} created, from branch {}".format(branch_name, self._cr.get('flowhub "structure"', 'devlop')),
+            "\tNew branch {} created, from branch {}".format(branch_name, self._cr.get('flowhub "structure"', 'develop')),
             ""
         )
 
