@@ -203,11 +203,15 @@ class Engine(object):
                 set_upstream=True
         )
 
+        base = self._cr.get('flowhub "structure"', 'develop')
+        head = "{}:{}".format(self._gh.get_user().login, branch_name)
+
+        if any([x for x in self._gh_repo.parent.get_pulls('open') if x.head.label == head]):
+            print "New commits added to existing pull-request."
+            return
+
         print "Setting up the pull-request..."
         is_issue = raw_input("Is this feature answering an issue? [y/N] ") == 'y'
-
-        base = self._cr.get('flowhub "structure"', 'develop')
-        head = "{}:{}".format(self._gh.get_user().login,branch_name)
 
         if not is_issue:
             title = raw_input("Title: ")
