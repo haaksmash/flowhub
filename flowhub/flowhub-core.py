@@ -187,7 +187,7 @@ class Engine(object):
         )
 
         self._repo.delete_head(branch_name)
-        self._repo.push(
+        self._repo.git.push(
             self._cr.get('flowhub "structure"', 'origin'),
             branch_name,
             delete=True,
@@ -198,6 +198,9 @@ class Engine(object):
             "\tDeleted branch {} locally and from remote {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'origin')
+            ),
+            "\tChecked out branch {}".format(
+                self._cr.get('flowhub "structure"', 'develop'),
             ),
         ))
 
@@ -246,7 +249,9 @@ def handle_feature_call(args, engine):
         engine.publish_feature()
 
     elif args.action == 'abandon':
-        return
+        engine.abandon_feature(
+            name=args.name,
+        )
 
     else:
         raise RuntimeError("Unrecognized command for features: {}".format(args.action))
@@ -268,8 +273,6 @@ def handle_cleanup_call(args, engine):
 
 
 if __name__ == "__main__":
-    print "You are calling the core flowhub file as an executable."
-
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
     subparsers = parser.add_subparsers(dest="subparser")
@@ -287,17 +290,19 @@ if __name__ == "__main__":
     feature_subs = feature.add_subparsers(dest='action')
     fstart = feature_subs.add_parser('start',
         help="start a new feature branch")
-    fstart.add_argument('name', help="name of the feature branch")
+    fstart.add_argument('name', help="name of the feature")
     fstart.add_argument('--no-track', default=False, action='store_true',
         help="do *not* set up a tracking branch on origin.")
     fswitch = feature_subs.add_parser('switch',
         help="switch to a different feature (by name)")
     fswitch.add_argument('name', help="name of feature to switch to")
-    publish = feature_subs.add_parser('publish',
+    fpublish = feature_subs.add_parser('publish',
         help="send the current feature branch to origin and create a pull-request")
-    abandon = feature_subs.add_parser('abandon',
+    fabandon = feature_subs.add_parser('abandon',
         help="remove a feature branch completely"
     )
+    fabandon.add_argument('name',
+        help="name of the feature to abandon")
 
     hotfix_subs = hotfix.add_subparsers(dest='action')
     hstart = hotfix_subs.add_parser('start',
