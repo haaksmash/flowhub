@@ -151,7 +151,13 @@ class Engine(object):
 
         branch = [x for x in repo.branches if x.name == branch_name]
         # Checkout the branch.
-        branch.checkout()
+        branch[0].checkout()
+
+        print (
+            "Summary of actions: ",
+            "\tNew branch {} created, from branch {}".format(branch_name, self._cr.get('flowhub "structure"', 'devlop')),
+            ""
+        )
 
     def prepare_release(self):
         pass
