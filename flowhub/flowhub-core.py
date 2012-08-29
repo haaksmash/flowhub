@@ -28,7 +28,7 @@ class Engine(object):
 
             self._gh_repo = self._gh.get_user().get_repo(self._cr.get('flowhub "structure"', 'name'))
 
-        if self._gh.rate_limiting[0] < 5000:
+        if self._gh.rate_limiting[0] < 100:
             warnings.warn("You are close to exceeding your GitHub access rate; {} left out of {} initially".format(*self._gh.rate_limiting))
 
     def do_auth(self):
