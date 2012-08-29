@@ -5,7 +5,6 @@ from ConfigParser import NoOptionError, NoSectionError
 import getpass
 import git
 from github import Github
-import os
 
 
 class Engine(object):
@@ -79,18 +78,18 @@ class Engine(object):
 
             self.__write_conf()
 
-            print (
+            print '\n'.join((
                 "You can change these settings just like all git settings, using the\n",
-                "    git config\n",
+                "\tgit config\n",
                 "command."
-            )
+            ))
 
             self._setup_repository_structure()
 
     def __write_conf(self):
         self._cw.write()
 
-    def _setup_repository_structure(self):
+    def setup_repository_structure(self):
         # make the repo...correct.
         pass
 
@@ -104,8 +103,7 @@ class Engine(object):
         return repo
 
     def publish_feature(self):
-        repo = self._get_repo()
-        gh = repo.remote(self._cr.get('flowhub "structure"', 'origin'))
+        gh = self._repo.remote(self._cr.get('flowhub "structure"', 'origin'))
 
     def create_release(self):
         # checkout develop
@@ -139,24 +137,68 @@ class Engine(object):
         # Checkout develop
         # checkout -b feature_prefix+branch_name
         # push -u origin feature_prefix+branch_name
-        branch_name = "{}{}".format(self._cr.get('flowhub "prefix"', 'feature'), name)
-        repo = self._get_repo()
-        repo.create_head(
+
+        branch_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'feature'),
+            name
+        )
+        self._repo.create_head(
             branch_name,
-            commit=repo.heads.develop,  # Requires a develop branch.
+            commit=self._repo.heads.develop,  # Requires a develop branch.
         )
 
         if create_tracking_branch:
-            repo.git.push(self._cr.get('flowhub "structure"', 'origin'), branch_name, set_upstream=True)
+            self._repo.git.push(
+                self._cr.get('flowhub "structure"', 'origin'),
+                branch_name,
+                set_upstream=True
+            )
 
-        branch = [x for x in repo.branches if x.name == branch_name]
+        branch = [x for x in self._repo.branches if x.name == branch_name]
         # Checkout the branch.
         branch[0].checkout()
 
         print '\n'.join((
             "Summary of actions: ",
-            "\tNew branch {} created, from branch {}".format(branch_name, self._cr.get('flowhub "structure"', 'develop')),
+            "\tNew branch {} created, from branch {}".format(
+                branch_name,
+                self._cr.get('flowhub "structure"', 'develop')
+            ),
             "\tSwitched to branch {}".format(branch_name),
+        ))
+
+    def abandon_feature(self, name=None):
+        if name is None:
+            raise RuntimeError("Please provide a feature name.")
+
+        if self.__debug > 0:
+            print "Abandoning feature branch..."
+
+        # checkout develop
+        # branch -D feature_prefix+name
+        # push --delete origin feature_prefix+name
+
+        head = [x for x in self._repo.heads if x.name == self._cr.get('flowhub "structure"', 'develop')][0]
+        head.checkout()
+
+        branch_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'feature'),
+            name,
+        )
+
+        self._repo.delete_head(branch_name)
+        self._repo.push(
+            self._cr.get('flowhub "structure"', 'origin'),
+            branch_name,
+            delete=True,
+        )
+
+        print "\n".join((
+            "Summary of actions: ",
+            "\tDeleted branch {} locally and from remote {}".format(
+                branch_name,
+                self._cr.get('flowhub "structure"', 'origin')
+            ),
         ))
 
     def prepare_release(self):
@@ -171,6 +213,7 @@ class Engine(object):
         # merge --no-ff release
         # push --tags canon
         # delete release branches
+        # git push origin --delete <branchName>
         pass
 
     def cleanup_branches(self):
@@ -180,8 +223,15 @@ class Engine(object):
         pass
 
 
+def handle_init_call(args, engine):
+    if args.verbosity > 2:
+        print "handling init"
+
+    engine.setup_repository_structure()
+
+
 def handle_feature_call(args, engine):
-    if args.verbosity > 1:
+    if args.verbosity > 2:
         print "handling feature"
     if args.action == 'start':
         engine.create_feature(
@@ -195,22 +245,25 @@ def handle_feature_call(args, engine):
     elif args.action == 'publish':
         engine.publish_feature()
 
+    elif args.action == 'abandon':
+        return
+
     else:
         raise RuntimeError("Unrecognized command for features: {}".format(args.action))
 
 
 def handle_hotfix_call(args, engine):
-    if args.verbosity > 1:
+    if args.verbosity > 2:
         print "handling hotfix"
 
 
 def handle_release_call(args, engine):
-    if args.verbosity > 1:
+    if args.verbosity > 2:
         print "handling release"
 
 
 def handle_cleanup_call(args, engine):
-    if args.verbosity > 1:
+    if args.verbosity > 2:
         print "handling cleanup"
 
 
@@ -221,7 +274,7 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
     subparsers = parser.add_subparsers(dest="subparser")
     init = subparsers.add_parser('init',
-        help="set up a repository to user flowhub",)
+        help="set up a repository to use flowhub",)
     feature = subparsers.add_parser('feature',
         help="do feature-related things",)
     hotfix = subparsers.add_parser('hotfix',
@@ -242,6 +295,9 @@ if __name__ == "__main__":
     fswitch.add_argument('name', help="name of feature to switch to")
     publish = feature_subs.add_parser('publish',
         help="send the current feature branch to origin and create a pull-request")
+    abandon = feature_subs.add_parser('abandon',
+        help="remove a feature branch completely"
+    )
 
     hotfix_subs = hotfix.add_subparsers(dest='action')
     hstart = hotfix_subs.add_parser('start',
@@ -277,6 +333,9 @@ if __name__ == "__main__":
 
     elif args.subparser == 'cleanup':
         handle_cleanup_call(args, e)
+
+    elif args.subparser == 'init':
+        handle_init_call(args, e)
 
     else:
         raise RuntimeError("Whoa, unrecognized command: {}".format(args.subparser))
