@@ -192,8 +192,24 @@ class Engine(object):
             ),
         ))
 
-    def publish_feature(self):
-        gh = self._repo.remote(self._cr.get('flowhub "structure"', 'origin'))
+    def publish_feature(self, name):
+        branch_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'feature'),
+            name
+        )
+        self._repo.git.push(
+                self._cr.get('flowhub "structure"', 'origin'),
+                branch_name,
+                set_upstream=True
+        )
+
+        print "Please provide the following, so we can create a pull-request:"
+        title = raw_input("Title: ")
+        body = raw_input("Description:\n\t")
+        base = branch_name
+        head = self._cr.get('flowhub "structure"', 'develop')
+
+        print (title, body, base, head)
 
     def create_release(self):
         # checkout develop
@@ -260,7 +276,7 @@ def handle_feature_call(args, engine):
         engine.work_feature(name=args.name)
 
     elif args.action == 'publish':
-        engine.publish_feature()
+        engine.publish_feature(name=args.name)
 
     elif args.action == 'abandon':
         engine.abandon_feature(
@@ -327,6 +343,8 @@ if __name__ == "__main__":
     fwork.add_argument('name', help="name of feature to switch to")
     fpublish = feature_subs.add_parser('publish',
         help="send the current feature branch to origin and create a pull-request")
+    fpublish.add_argument('name',
+        help='name of feature to publish.')
     fabandon = feature_subs.add_parser('abandon',
         help="remove a feature branch completely"
     )
