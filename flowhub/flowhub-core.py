@@ -206,8 +206,10 @@ class Engine(object):
         base = self._cr.get('flowhub "structure"', 'develop')
         head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
-        if any([x for x in self._gh_repo.parent.get_pulls('open') if x.head.label == head]):
+        prs = [x for x in self._gh_repo.parent.get_pulls('open') if x.head.label == head]
+        if prs:
             print "New commits added to existing pull-request."
+            print "url: {}".format(prs[0].url)
             return
 
         print "Setting up the pull-request..."
@@ -233,6 +235,7 @@ class Engine(object):
                 base=base,
                 head=head,
             )
+        print "url: {}".format(pr.url)
 
     def create_release(self):
         # checkout develop
