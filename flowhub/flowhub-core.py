@@ -128,9 +128,9 @@ class Engine(object):
                 set_upstream=True
             )
 
-        branch = [x for x in self._repo.branches if x.name == branch_name]
+        branch = [x for x in self._repo.branches if x.name == branch_name][0]
         # Checkout the branch.
-        branch[0].checkout()
+        branch.checkout()
 
         print '\n'.join((
             "Summary of actions: ",
@@ -140,6 +140,20 @@ class Engine(object):
             ),
             "\tSwitched to branch {}".format(branch_name),
         ))
+
+    def work_feature(self, name=None):
+        if name is None:
+            raise RuntimeError("Please provide a feature name.")
+
+        if self.__debug > 0:
+            print "switching to a feature branch..."
+
+        branch_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'feature'),
+            name
+        )
+        branch = [x for x in self._repo.branches if x.name == branch_name][0]
+        branch.checkout()
 
     def abandon_feature(self, name=None):
         if name is None:
@@ -242,8 +256,8 @@ def handle_feature_call(args, engine):
             create_tracking_branch=(not args.no_track),
         )
 
-    elif args.action == 'switch':
-        return
+    elif args.action == 'work':
+        engine.work_feature(name=args.name)
 
     elif args.action == 'publish':
         engine.publish_feature()
@@ -254,7 +268,7 @@ def handle_feature_call(args, engine):
         )
 
     else:
-        raise RuntimeError("Unrecognized command for features: {}".format(args.action))
+        raise RuntimeError("Unimplemented command for features: {}".format(args.action))
 
 
 def handle_hotfix_call(args, engine):
@@ -293,9 +307,9 @@ if __name__ == "__main__":
     fstart.add_argument('name', help="name of the feature")
     fstart.add_argument('--no-track', default=False, action='store_true',
         help="do *not* set up a tracking branch on origin.")
-    fswitch = feature_subs.add_parser('switch',
+    fwork = feature_subs.add_parser('work',
         help="switch to a different feature (by name)")
-    fswitch.add_argument('name', help="name of feature to switch to")
+    fwork.add_argument('name', help="name of feature to switch to")
     fpublish = feature_subs.add_parser('publish',
         help="send the current feature branch to origin and create a pull-request")
     fabandon = feature_subs.add_parser('abandon',
