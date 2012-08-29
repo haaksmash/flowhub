@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import commands
-from ConfigParser import SafeConfigParser, NoOptionError, NoSectionError
+from ConfigParser import NoOptionError, NoSectionError
 import getpass
 import git
 from github import Github
@@ -9,29 +9,29 @@ import os
 
 
 class Engine(object):
-    DEFAULT_CONF = "{}/.flowhub.cnf".format(os.getenv('HOME'))
 
-    def __init__(self, config_file=None, debug=0):
+    def __init__(self, debug=0, skip_auth=False):
         self.__debug = debug
-        if config_file is not None:
-            self._config = config_file
-        else:
-            self._config = self.DEFAULT_CONF
 
-        self._c = SafeConfigParser()
-        self._c.read(self.DEFAULT_CONF)
+        self._repo = self._get_repo()
+
+        self._cw = self._repo.config_writer()
+        self._cr = self._repo.config_reader()
 
         self._gh = None
-        if self.__debug > 0:
-            print "Authorizing engine..."
-        self.do_auth()
+        if not skip_auth:
+            if self.__debug > 0:
+                print "Authorizing engine..."
+            self.do_auth()
+            # Refresh the read-only reader.
+            self._cr = self._repo.config_reader()
 
-        self._repo = self._gh.get_user().get_repo(self._c.get('structure', 'repo'))
+            self._gh_repo = self._gh.get_user().get_repo(self._cr.get('flowhub "structure"', 'origin'))
 
     def do_auth(self):
         """Generates the authorization to do things with github."""
         try:
-            token = self._c.get('auth', 'token')
+            token = self._cr.get('flowhub "auth"', 'token')
             self._gh = Github(token)
             if self.__debug > 0:
                 print "GitHub Engine authorized by token in settings."
@@ -43,6 +43,7 @@ class Engine(object):
                 "This appears to be the first time you've used Flowhub; "
                 "we'll have to do a little bit of setup."
             )
+            self._cw.add_section('flowhub "auth"')
             self._gh = Github(raw_input("Username: "), getpass.getpass())
 
             auth = self._gh.get_user().create_authorization(
@@ -51,39 +52,47 @@ class Engine(object):
             )
             token = auth.token
 
-            if not self._c.has_section('auth'):
-                if self.__debug > 1:
-                    print "Adding 'auth' section"
-                self._c.add_section('auth')
+            self._cw.set('flowhub "auth"', 'token', token)
 
-            self._c.set('auth', 'token', token)
+            self._cw.add_section('flowhub "structure"')
 
-            if not self._c.has_section('structure'):
-                if self.__debug > 1:
-                    print "Adding 'structure' section"
-                self._c.add_section('structure')
+            self._cw.set('flowhub "structure"', 'name',
+                raw_input("Repository name for this flowhub: "))
+            self._cw.set('flowhub "structure"', 'origin',
+                raw_input("Name of your github remote? [origin] ") or 'origin')
+            self._cw.set('flowhub "structure"', 'canon',
+                raw_input('Name of the organization remote? [canon] ') or 'canon')
 
-            repo_name = raw_input("Repository name for this flowhub: ")
+            self._cw.set('flowhub "structure"', 'master',
+                raw_input("Name of the stable branch? [master] ") or 'master')
+            self._cw.set('flowhub "structure"', 'develop',
+                raw_input("Name of the development branch? [develop] ") or 'develop')
 
-            self._c.set('structure', 'repo', repo_name)
+            self._cw.add_section('flowhub "prefix"')
 
             feature_prefix = raw_input("Prefix for feature branches [feature/]: ") or 'feature/'
-            self._c.set('structure', 'feature_prefix', feature_prefix)
+            self._cw.set('flowhub "prefix"', 'feature', feature_prefix)
             release_prefix = raw_input("Prefix for releast branches [release/]: ") or "release/"
-            self._c.set('structure', 'release_prefix', release_prefix)
+            self._cw.set('flowhub "prefix"', 'release', release_prefix)
             hotfix_prefix = raw_input("Prefix for hotfix branches [hotfix/]: ") or "hotfix/"
-            self._c.set('structure', 'hotfix_prefix', hotfix_prefix)
-
-            github_remote = raw_input("What is the name of the github remote? ")
-            self._c.set('structure', 'gh_remote', github_remote)
+            self._cw.set('flowhub "prefix"', 'hotfix', hotfix_prefix)
 
             self.__write_conf()
 
+            print (
+                "You can change these settings just like all git settings, using the\n",
+                "    git config\n",
+                "command."
+            )
+
+            self._setup_repository_structure()
+
     def __write_conf(self):
-        with open(self._config, 'wb') as f:
-            if self.__debug > 0:
-                print "Storing configuration in {}".format(self._config)
-            self._c.write(f)
+        self._cw.write()
+
+    def _setup_repository_structure(self):
+        # make the repo...correct.
+        pass
 
     def _get_repo(self):
         """Get the repository of this directory, or error out if not found"""
@@ -96,7 +105,7 @@ class Engine(object):
 
     def publish_feature(self):
         repo = self._get_repo()
-        gh = repo.remote(self._c.get('structure', 'gh_remote'))
+        gh = repo.remote(self._cr.get('flowhub "structure"', 'origin'))
 
     def create_release(self):
         # checkout develop
@@ -130,7 +139,15 @@ class Engine(object):
         # Checkout develop
         # checkout -b feature_prefix+branch_name
         # push -u origin feature_prefix+branch_name
+        branch_name = "{}{}".format(self._cr.get('flowhub "prefix"', 'feature'))
+        repo = self._get_repo()
+        repo.create_head(
+            branch_name,
+            commit=repo.heads.develop,  # Requires a develop branch.
+        )
 
+        if create_tracking_branch:
+            repo.git.push(self._cr.get('flowhub "structure"', 'origin'), branch_name, set_upstream=True)
 
     def prepare_release(self):
         pass
@@ -193,6 +210,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
     subparsers = parser.add_subparsers(dest="subparser")
+    init = subparsers.add_parser('init',
+        help="set up a repository to user flowhub",)
     feature = subparsers.add_parser('feature',
         help="do feature-related things",)
     hotfix = subparsers.add_parser('hotfix',
