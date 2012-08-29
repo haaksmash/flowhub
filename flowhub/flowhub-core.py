@@ -26,7 +26,7 @@ class Engine(object):
             # Refresh the read-only reader.
             self._cr = self._repo.config_reader()
 
-            self._gh_repo = self._gh.get_user().get_repo(self._cr.get('flowhub "structure"', 'origin'))
+            self._gh_repo = self._gh.get_user().get_repo(self._cr.get('flowhub "structure"', 'name'))
 
     def do_auth(self):
         """Generates the authorization to do things with github."""
@@ -139,7 +139,7 @@ class Engine(object):
         # Checkout develop
         # checkout -b feature_prefix+branch_name
         # push -u origin feature_prefix+branch_name
-        branch_name = "{}{}".format(self._cr.get('flowhub "prefix"', 'feature'))
+        branch_name = "{}{}".format(self._cr.get('flowhub "prefix"', 'feature'), name)
         repo = self._get_repo()
         repo.create_head(
             branch_name,
@@ -148,6 +148,10 @@ class Engine(object):
 
         if create_tracking_branch:
             repo.git.push(self._cr.get('flowhub "structure"', 'origin'), branch_name, set_upstream=True)
+
+        branch = [x for x in repo.branches if x.name == branch_name]
+        # Checkout the branch.
+        branch.checkout()
 
     def prepare_release(self):
         pass
