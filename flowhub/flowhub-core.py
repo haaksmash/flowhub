@@ -5,6 +5,7 @@ from ConfigParser import NoOptionError, NoSectionError
 import getpass
 import git
 from github import Github
+import warnings
 
 
 class Engine(object):
@@ -26,6 +27,9 @@ class Engine(object):
             self._cr = self._repo.config_reader()
 
             self._gh_repo = self._gh.get_user().get_repo(self._cr.get('flowhub "structure"', 'name'))
+
+        if self._gh.rate_limiting[0] < 5000:
+            warnings.warn("You are close to exceeding your GitHub access rate; {} left out of {} initially".format(*self._gh.rate_limiting))
 
     def do_auth(self):
         """Generates the authorization to do things with github."""
