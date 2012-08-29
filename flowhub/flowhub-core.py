@@ -275,15 +275,30 @@ def handle_hotfix_call(args, engine):
     if args.verbosity > 2:
         print "handling hotfix"
 
+    if False:
+        pass
+    else:
+        raise RuntimeError("Unimplemented command for hotfixes: {}".format(args.action))
+
 
 def handle_release_call(args, engine):
     if args.verbosity > 2:
         print "handling release"
 
+    if False:
+        pass
+    else:
+        raise RuntimeError("Unimplemented command for releases: {}".format(args.action))
+
 
 def handle_cleanup_call(args, engine):
     if args.verbosity > 2:
         print "handling cleanup"
+
+    if False:
+        pass
+    else:
+        raise RuntimeError("Unimplemented command for cleanups: {}".format(args.action))
 
 
 if __name__ == "__main__":
@@ -336,7 +351,7 @@ if __name__ == "__main__":
     cleanup_subs = cleanup.add_subparsers()
 
     args = parser.parse_args()
-    if args.verbosity > 1:
+    if args.verbosity > 2:
         print "Args: ", args
 
     e = Engine(debug=args.verbosity)
