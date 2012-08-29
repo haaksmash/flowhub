@@ -28,8 +28,11 @@ class Engine(object):
 
             self._gh_repo = self._gh.get_user().get_repo(self._cr.get('flowhub "structure"', 'name'))
 
-        if self._gh.rate_limiting[0] < 100:
-            warnings.warn("You are close to exceeding your GitHub access rate; {} left out of {} initially".format(*self._gh.rate_limiting))
+            if self._gh.rate_limiting[0] < 100:
+                warnings.warn("You are close to exceeding your GitHub access rate; {} left out of {} initially".format(*self._gh.rate_limiting))
+        else:
+            if self.__debug > 0:
+                print "Skipping auth - GitHub accesses will fail."
 
     def do_auth(self):
         """Generates the authorization to do things with github."""
@@ -133,6 +136,7 @@ class Engine(object):
             )
 
         branch = [x for x in self._repo.branches if x.name == branch_name][0]
+
         # Checkout the branch.
         branch.checkout()
 
@@ -366,6 +370,7 @@ def handle_cleanup_call(args, engine):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
+    parser.add_argument('--no-gh', action='store_true', default=False)
 
     subparsers = parser.add_subparsers(dest="subparser")
     init = subparsers.add_parser('init',
@@ -433,7 +438,7 @@ if __name__ == "__main__":
     if args.verbosity > 2:
         print "Args: ", args
 
-    e = Engine(debug=args.verbosity)
+    e = Engine(debug=args.verbosity, skip_auth=args.no_gh)
 
     if args.subparser == 'feature':
         handle_feature_call(args, e)
@@ -451,4 +456,4 @@ if __name__ == "__main__":
         handle_init_call(args, e)
 
     else:
-        raise RuntimeError("Whoa, unrecognized command: {}".format(args.subparser))
+        raise RuntimeError("Unrecognized command: {}".format(args.subparser))
