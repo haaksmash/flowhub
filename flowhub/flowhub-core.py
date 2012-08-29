@@ -203,13 +203,32 @@ class Engine(object):
                 set_upstream=True
         )
 
-        print "Please provide the following, so we can create a pull-request:"
-        title = raw_input("Title: ")
-        body = raw_input("Description:\n\t")
+        print "Setting up the pull-request..."
+        is_issue = raw_input("Is this feature answering an issue? [y/N] ") == 'y'
+
         base = branch_name
         head = self._cr.get('flowhub "structure"', 'develop')
 
-        print (title, body, base, head)
+        if not is_issue:
+            title = raw_input("Title: ")
+            body = raw_input("Description (remember, you can use GitHub markdown):\n")
+
+            if self.__debug > 1:
+                print (title, body, base, head)
+            pr = self._gh_repo.create_pull(
+                title=title,
+                body=body,
+                base=base,
+                head=head,
+            )
+        else:
+            issue_number = raw_input("Issue number: ")
+            issue = self._gh_repo.get_issue(int(issue_number))
+            pr = self._gh_repo.create_pull(
+                issue=issue,
+                base=base,
+                head=head,
+            )
 
     def create_release(self):
         # checkout develop
