@@ -227,6 +227,7 @@ class Engine(object):
 
         prs = [x for x in self._gh_repo.parent.get_pulls('open') if x.head.label == head]
         if prs:
+            # If there's already a pull-request, don't bother hitting the gh api.
             print "New commits added to existing pull-request."
             print "url: {}".format(prs[0].issue_url)
             return
@@ -365,6 +366,7 @@ def handle_cleanup_call(args, engine):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
+
     subparsers = parser.add_subparsers(dest="subparser")
     init = subparsers.add_parser('init',
         help="set up a repository to use flowhub",)
@@ -377,6 +379,9 @@ if __name__ == "__main__":
     cleanup = subparsers.add_parser('cleanup',
         help="do repository-cleanup related things",)
 
+    #
+    # Features
+    #
     feature_subs = feature.add_subparsers(dest='action')
     fstart = feature_subs.add_parser('start',
         help="start a new feature branch")
@@ -398,12 +403,18 @@ if __name__ == "__main__":
         default=None,
         help="name of the feature to abandon. If not given, uses current feature")
 
+    #
+    # Hotfixes
+    #
     hotfix_subs = hotfix.add_subparsers(dest='action')
     hstart = hotfix_subs.add_parser('start',
         help="start a new hotfix branch")
     apply = hotfix_subs.add_parser('apply',
         help="apply a hotfix branch to master and develop branches")
 
+    #
+    # Releases
+    #
     release_subs = release.add_subparsers(dest='action')
     rstart = release_subs.add_parser('start',
         help="start a new release branch")
@@ -413,6 +424,9 @@ if __name__ == "__main__":
     rpublish = release_subs.add_parser('publish',
         help="merge a release branch into master and develop branches")
 
+    #
+    # Cleanup
+    #
     cleanup_subs = cleanup.add_subparsers()
 
     args = parser.parse_args()
