@@ -102,32 +102,6 @@ class Engine(object):
         repo = git.Repo(repo_dir)
         return repo
 
-    def publish_feature(self):
-        gh = self._repo.remote(self._cr.get('flowhub "structure"', 'origin'))
-
-    def create_release(self):
-        # checkout develop
-        # if already release branch, abort.
-        # checkout -b relase_prefix+branch_name
-        pass
-
-    def create_hotfix(self):
-        # Checkout master
-        # if already hotfix branch, abort.
-        # checkout -b hotfix_prefix+branch_name
-        pass
-
-    def apply_hotfix(self):
-        # pull canon
-        # checkout master
-        # merge --no-ff hotfix
-        # tag
-        # checkout develop
-        # merge --no-ff hotfix
-        # push --tags canon
-        # delete hotfix branches
-        pass
-
     def create_feature(self, name=None, create_tracking_branch=True):
         if name is None:
             raise RuntimeError("Please provide a feature name.")
@@ -204,6 +178,15 @@ class Engine(object):
             ),
         ))
 
+    def publish_feature(self):
+        gh = self._repo.remote(self._cr.get('flowhub "structure"', 'origin'))
+
+    def create_release(self):
+        # checkout develop
+        # if already release branch, abort.
+        # checkout -b relase_prefix+branch_name
+        pass
+
     def prepare_release(self):
         pass
 
@@ -216,13 +199,30 @@ class Engine(object):
         # merge --no-ff release
         # push --tags canon
         # delete release branches
-        # git push origin --delete <branchName>
+        # git push origin --delete name
         pass
 
     def cleanup_branches(self):
         # hotfixes: remove from origin, local if match not found on canon
         # releases: remove from origin, local if match not found on canon
         # features: if pull request found and accepted, delete from local and origin
+        pass
+
+    def create_hotfix(self):
+        # Checkout master
+        # if already hotfix branch, abort.
+        # checkout -b hotfix_prefix+branch_name
+        pass
+
+    def apply_hotfix(self):
+        # pull canon
+        # checkout master
+        # merge --no-ff hotfix
+        # tag
+        # checkout develop
+        # merge --no-ff hotfix
+        # push --tags canon
+        # delete hotfix branches
         pass
 
 
