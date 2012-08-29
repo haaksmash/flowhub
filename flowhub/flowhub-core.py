@@ -94,16 +94,32 @@ class Engine(object):
         gh = repo.remote(self._c.get('structure', 'gh_remote'))
 
     def create_release(self):
+        # checkout develop
+        # if already release branch, abort.
+        # checkout -b relase_prefix+branch_name
         pass
 
     def create_hotfix(self):
         # Checkout master
+        # if already hotfix branch, abort.
         # checkout -b hotfix_prefix+branch_name
+        pass
+
+    def apply_hotfix(self):
+        # pull canon
+        # checkout master
+        # merge --no-ff hotfix
+        # tag
+        # checkout develop
+        # merge --no-ff hotfix
+        # push --tags canon
+        # delete hotfix branches
         pass
 
     def create_feature(self):
         # Checkout develop
         # checkout -b feature_prefix+branch_name
+        # push -u origin feature_prefix+branch_name
         pass
 
     def rollback_branch(self, branch_name='master'):
@@ -113,4 +129,98 @@ class Engine(object):
         pass
 
     def publish_release(self):
+        # pull canon
+        # checkout master
+        # merge --no-ff release
+        # tag
+        # checkout develop
+        # merge --no-ff release
+        # push --tags canon
+        # delete release branches
         pass
+
+    def cleanup_branches(self):
+        # hotfixes: remove from origin, local if match not found on canon
+        # releases: remove from origin, local if match not found on canon
+        # features: if pull request found and accepted, delete from local and origin
+        pass
+
+
+def handle_feature_call(args, engine):
+    print "handline feature"
+
+
+def handle_hotfix_call(args, engine):
+    print "handling hotfix"
+
+
+def handle_release_call(args, engine):
+    print "handling release"
+
+
+def handle_cleanup_call(args, engine):
+    print "handling cleanup"
+
+
+if __name__ == "__main__":
+    print "You are calling the core flowhub file as an executable."
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
+    subparsers = parser.add_subparsers(dest="subparser")
+    feature = subparsers.add_parser('feature',
+        help="do feature-related things",)
+    hotfix = subparsers.add_parser('hotfix',
+        help="do hotfix-related things",)
+    release = subparsers.add_parser('release',
+        help="do release-related things",)
+    cleanup = subparsers.add_parser('cleanup',
+        help="do repository-cleanup related things",)
+
+    feature_subs = feature.add_subparsers(dest='action')
+    fstart = feature_subs.add_parser('start',
+        help="start a new feature branch")
+    fstart.add_argument('name', help="name of the feature branch")
+    fstart.add_argument('--no-track', default=False, action='store_true',
+        help="do *not* set up a tracking branch on origin.")
+    fswitch = feature_subs.add_parser('switch',
+        help="switch to a different feature (by name)")
+    fswitch.add_argument('name', help="name of feature to switch to")
+    publish = feature_subs.add_parser('publish',
+        help="send the current feature branch to origin and create a pull-request")
+
+    hotfix_subs = hotfix.add_subparsers(dest='action')
+    hstart = hotfix_subs.add_parser('start',
+        help="start a new hotfix branch")
+    apply = hotfix_subs.add_parser('apply',
+        help="apply a hotfix branch to master and develop branches")
+
+    release_subs = release.add_subparsers(dest='action')
+    rstart = release_subs.add_parser('start',
+        help="start a new release branch")
+    rstart.add_argument('name', help="name of the release branch.")
+    rprepare = release_subs.add_parser('prepare',
+        help="send a release branch to a staging environment")
+    rpublish = release_subs.add_parser('publish',
+        help="merge a release branch into master and develop branches")
+
+    cleanup_subs = cleanup.add_subparsers()
+
+    args = parser.parse_args()
+
+    e = Engine(debug=args.verbosity)
+
+    if args.subparser == 'feature':
+        handle_feature_call(args, e)
+
+    elif args.subparser == 'hotfix':
+        handle_hotfix_call(args, e)
+
+    elif args.subparser == 'release':
+        handle_release_call(args, e)
+
+    elif args.subparser == 'cleanup':
+        handle_cleanup_call(args, e)
+
+    else:
+        raise RuntimeError("Whoa, unrecognized command: {}".format(args.subparser))
