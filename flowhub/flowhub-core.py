@@ -251,10 +251,15 @@ class Engine(object):
                 set_upstream=True
         )
 
-        base = self._cr.get('flowhub "structure"', 'develop')
+        base = self.develop.name
         head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
-        prs = [x for x in self._gh_repo.parent.get_pulls('open') if x.head.label == head]
+        if self.canon == self.origin:
+            gh_parent = self._gh_repo
+        else:
+            gh_parent = self._gh_repo.parent
+
+        prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
             print "new commits added to existing pull-request."
@@ -270,7 +275,7 @@ class Engine(object):
 
             if self.__debug > 1:
                 print (title, body, base, head)
-            pr = self._gh_repo.parent.create_pull(
+            pr = gh_parent.create_pull(
                 title=title,
                 body=body,
                 base=base,
@@ -279,7 +284,7 @@ class Engine(object):
         else:
             issue_number = raw_input("Issue number: ")
             issue = self._gh_repo.parent.get_issue(int(issue_number))
-            pr = self._gh_repo.parent.create_pull(
+            pr = gh_parent.create_pull(
                 issue=issue,
                 base=base,
                 head=head,
