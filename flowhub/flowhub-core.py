@@ -483,6 +483,10 @@ def handle_release_call(args, engine):
     if args.action == 'start':
         engine.start_release(
             name=args.name,
+        )
+    elif args.action == 'publish':
+        engine.publish_release(
+            name=args.name,
             delete_release_branch=(not args.no_cleanup),
         )
     else:
