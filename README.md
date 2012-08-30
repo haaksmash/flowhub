@@ -1,4 +1,3 @@
-tools
+Flowhub
 =====
-
-tools for stuff
+###### Git Flow adapted to GitHub
