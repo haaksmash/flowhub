@@ -12,6 +12,6 @@ setup(
     url="http://github.com/haaksmash/flowhub",
     packages=find_packages(),
     scripts=[
-        os.path.join('bin','flowhub')
-    ]
+        os.path.join('bin', 'flowhub')
+    ],
 )
