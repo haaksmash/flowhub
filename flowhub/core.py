@@ -187,6 +187,45 @@ class Engine(object):
         else:
             raise RuntimeError("no feature with name {}".format(name))
 
+    def accept_feature(self, name=None):
+        if name is None:
+            # If no name specified, try to use the currently checked-out branch,
+            # but only if it's a feature branch.
+            name = self._repo.head.reference.name
+            if self._cr.get('flowhub "prefix"', 'feature') not in name:
+                raise RuntimeError("Please provide a feature name, or switch to the feature branch you want to mark as accepted.")
+
+            name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
+
+        self.canon.pull(
+            refspec="{0}:{0} {1}:{1}".format(
+                self.master.name,
+                self.develop.name,
+            )
+        )
+        self.origin.push()
+
+        self.develop.checkout()
+        branch_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'feature'),
+            name,
+        )
+
+        self._repo.delete_head(branch_name)
+        self.origin.push(
+            branch_name,
+            delete=True,
+        )
+
+        print "\n\t".join((
+            "Summary of Actions:",
+            "Latest objects fetched from {}".format(self.canon.name),
+            "Updated {}".format(self.origin.name),
+            "Deleted {} from local repository".format(branch_name),
+            "Deleted {} from {}".format(branch_name, self.origin.name),
+            "Checked out branch {}".format(self.develop.name),
+        ))
+
     def abandon_feature(self, name=None):
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
@@ -483,6 +522,11 @@ def handle_feature_call(args, engine):
             name=args.name,
         )
 
+    elif args.action == 'accepted':
+        engine.accept_feature(
+            name=args.name,
+        )
+
     else:
         raise RuntimeError("Unimplemented command for features: {}".format(args.action))
 
@@ -569,6 +613,11 @@ def run():
     fabandon.add_argument('name', nargs='?',
         default=None,
         help="name of the feature to abandon. If not given, uses current feature")
+    faccepted = feature_subs.add_parser('accepted',
+        help="declare that a feature was accepted into the trunk")
+    faccepted.add_argument('name', nargs='?',
+        default=None,
+        help="name of the accepted feature. If not given, assumes current feature")
 
     #
     # Hotfixes
