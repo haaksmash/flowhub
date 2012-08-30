@@ -114,7 +114,7 @@ class Engine(object):
             raise RuntimeError("Please provide a feature name.")
 
         if self.__debug > 0:
-            print "Creating new feature branch..."
+            print "creating new feature branch..."
         # Checkout develop
         # checkout -b feature_prefix+branch_name
         # push -u origin feature_prefix+branch_name
@@ -129,6 +129,8 @@ class Engine(object):
         )
 
         if create_tracking_branch:
+            if self.__debug > 0:
+                print "Adding a tracking branch to your GitHub repo"
             self._repo.git.push(
                 self._cr.get('flowhub "structure"', 'origin'),
                 branch_name,
@@ -141,17 +143,18 @@ class Engine(object):
         branch.checkout()
 
         print '\n'.join((
-            "Summary of actions: ",
-            "\tNew branch {} created, from branch {}".format(
+            "summary of actions: ",
+            "\tnew branch {} created, from branch {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'develop')
             ),
-            "\tSwitched to branch {}".format(branch_name),
+            "\tchecked out branch {}".format(branch_name),
         ))
 
     def work_feature(self, name=None):
+        """Simply checks out the feature branch for the named feature."""
         if name is None:
-            raise RuntimeError("Please provide a feature name.")
+            raise RuntimeError("please provide a feature name.")
 
         if self.__debug > 0:
             print "switching to a feature branch..."
@@ -160,8 +163,13 @@ class Engine(object):
             self._cr.get('flowhub "prefix"', 'feature'),
             name
         )
-        branch = [x for x in self._repo.branches if x.name == branch_name][0]
-        branch.checkout()
+        branches = [x for x in self._repo.branches if x.name == branch_name]
+        if branches:
+            branch = branches[0]
+            branch.checkout()
+
+        else:
+            raise RuntimeError("no feature with name {}".format(name))
 
     def abandon_feature(self, name=None):
         if name is None:
@@ -174,7 +182,7 @@ class Engine(object):
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
         if self.__debug > 0:
-            print "Abandoning feature branch..."
+            print "abandoning feature branch..."
 
         # checkout develop
         # branch -D feature_prefix+name
@@ -196,12 +204,12 @@ class Engine(object):
         )
 
         print "\n".join((
-            "Summary of actions: ",
-            "\tDeleted branch {} locally and from remote {}".format(
+            "summary of actions: ",
+            "\tdeleted branch {} locally and from remote {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'origin')
             ),
-            "\tChecked out branch {}".format(
+            "\tchecked out branch {}".format(
                 self._cr.get('flowhub "structure"', 'develop'),
             ),
         ))
@@ -212,7 +220,7 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.get('flowhub "prefix"', 'feature') not in name:
-                raise RuntimeError("Please provide a feature name, or switch to a feature branch.")
+                raise RuntimeError("please provide a feature name, or switch to a feature branch.")
 
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
@@ -232,11 +240,11 @@ class Engine(object):
         prs = [x for x in self._gh_repo.parent.get_pulls('open') if x.head.label == head]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
-            print "New commits added to existing pull-request."
+            print "new commits added to existing pull-request."
             print "url: {}".format(prs[0].issue_url)
             return
 
-        print "Setting up the pull-request..."
+        print "setting up new pull-request"
         is_issue = raw_input("Is this feature answering an issue? [y/N] ") == 'y'
 
         if not is_issue:
