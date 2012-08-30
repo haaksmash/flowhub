@@ -197,21 +197,21 @@ class Engine(object):
 
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
-        self.canon.pull(
-            refspec="{0}:{0} {1}:{1}".format(
-                self.master.name,
-                self.develop.name,
-            )
-        )
-        self.origin.push()
+        self.canon.fetch()
 
         self.develop.checkout()
+        self._repo.git.merge(
+            "{}/{}".format(self.canon.name, self.develop.name),
+        )
         branch_name = "{}{}".format(
             self._cr.get('flowhub "prefix"', 'feature'),
             name,
         )
 
-        self._repo.delete_head(branch_name)
+        self._repo.delete_head(
+            branch_name,
+            force=True,
+        )
         self.origin.push(
             branch_name,
             delete=True,
@@ -220,7 +220,7 @@ class Engine(object):
         print "\n\t".join((
             "Summary of Actions:",
             "Latest objects fetched from {}".format(self.canon.name),
-            "Updated {}".format(self.origin.name),
+            "Updated {}".format(self.develop.name),
             "Deleted {} from local repository".format(branch_name),
             "Deleted {} from {}".format(branch_name, self.origin.name),
             "Checked out branch {}".format(self.develop.name),
