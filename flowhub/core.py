@@ -130,7 +130,7 @@ class Engine(object):
             raise RuntimeError("Please provide a feature name.")
 
         if self.__debug > 0:
-            print "creating new feature branch..."
+            print "Creating new feature branch..."
         # Checkout develop
         # checkout -b feature_prefix+branch_name
         # push -u origin feature_prefix+branch_name
@@ -159,12 +159,12 @@ class Engine(object):
         branch.checkout()
 
         print '\n'.join((
-            "summary of actions: ",
-            "\tnew branch {} created, from branch {}".format(
+            "Summary of actions: ",
+            "\tNew branch {} created, from branch {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'develop')
             ),
-            "\tchecked out branch {}".format(branch_name),
+            "\tChecked out branch {}".format(branch_name),
         ))
 
     def work_feature(self, name=None):
@@ -198,7 +198,7 @@ class Engine(object):
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
         if self.__debug > 0:
-            print "abandoning feature branch..."
+            print "Abandoning feature branch..."
 
         # checkout develop
         # branch -D feature_prefix+name
@@ -220,12 +220,12 @@ class Engine(object):
         )
 
         print "\n".join((
-            "summary of actions: ",
-            "\tdeleted branch {} locally and from remote {}".format(
+            "Summary of actions: ",
+            "\tDeleted branch {} locally and from remote {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'origin')
             ),
-            "\tchecked out branch {}".format(
+            "\tChecked out branch {}".format(
                 self._cr.get('flowhub "structure"', 'develop'),
             ),
         ))
