@@ -7,7 +7,7 @@ import git
 from github import Github
 import warnings
 
-__version__ = "0.1"
+__version__ = "0.2"
 
 class Engine(object):
 
@@ -97,6 +97,22 @@ class Engine(object):
     def __write_conf(self):
         self._cw.write()
 
+    @property
+    def develop(self):
+        return [x for x in self._repo.heads if x.name == self._cr.get('flowhub "structure"', 'develop')][0]
+
+    @property
+    def master(self):
+        return [x for x in self._repo.heads if x.name == self._cr.get('flowhub "structure"', 'master')][0]
+
+    @property
+    def origin(self):
+        return self._repo.remote(self._cr.get('flowhub "structure"', 'origin'))
+
+    @property
+    def canon(self):
+        return self._repo.remote(self._cr.get('flowhub "structure"', 'canon'))
+
     def setup_repository_structure(self):
         # make the repo...correct.
         pass
@@ -126,7 +142,7 @@ class Engine(object):
         )
         self._repo.create_head(
             branch_name,
-            commit=self._repo.heads.develop,  # Requires a develop branch.
+            commit=self.develop,  # Requires a develop branch.
         )
 
         if create_tracking_branch:
@@ -178,7 +194,7 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.get('flowhub "prefix"', 'feature') not in name:
-                raise RuntimeError("Please provide a feature name, or switch to a feature branch.")
+                raise RuntimeError("Please provide a feature name, or switch to the feature branch you want to abandon.")
 
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
@@ -189,7 +205,7 @@ class Engine(object):
         # branch -D feature_prefix+name
         # push --delete origin feature_prefix+name
 
-        head = [x for x in self._repo.heads if x.name == self._cr.get('flowhub "structure"', 'develop')][0]
+        head = self.develop
         head.checkout()
 
         branch_name = "{}{}".format(
@@ -221,7 +237,7 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.get('flowhub "prefix"', 'feature') not in name:
-                raise RuntimeError("please provide a feature name, or switch to a feature branch.")
+                raise RuntimeError("please provide a feature name, or switch to the feature branch you want to publish.")
 
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
@@ -235,10 +251,16 @@ class Engine(object):
                 set_upstream=True
         )
 
-        base = self._cr.get('flowhub "structure"', 'develop')
-        head = "{}:{}".format(self._gh.get_user().login, branch_name)
+        if self.canon == self.origin:
+            gh_parent = self._gh_repo
+            base = self.develop.name
+            head = branch_name
+        else:
+            gh_parent = self._gh_repo.parent
+            base = self.develop.name
+            head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
-        prs = [x for x in self._gh_repo.parent.get_pulls('open') if x.head.label == head]
+        prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
             print "new commits added to existing pull-request."
@@ -254,7 +276,7 @@ class Engine(object):
 
             if self.__debug > 1:
                 print (title, body, base, head)
-            pr = self._gh_repo.parent.create_pull(
+            pr = gh_parent.create_pull(
                 title=title,
                 body=body,
                 base=base,
@@ -263,33 +285,141 @@ class Engine(object):
         else:
             issue_number = raw_input("Issue number: ")
             issue = self._gh_repo.parent.get_issue(int(issue_number))
-            pr = self._gh_repo.parent.create_pull(
+            pr = gh_parent.create_pull(
                 issue=issue,
                 base=base,
                 head=head,
             )
         print "url: {}".format(pr.issue_url)
 
-    def create_release(self):
+    def start_release(self, name):
         # checkout develop
         # if already release branch, abort.
         # checkout -b relase_prefix+branch_name
-        pass
+        if name is None:
+            raise RuntimeError("Please provide a release name.")
 
-    def prepare_release(self):
-        pass
+        if any([x for x in self._repo.branches if x.name.startswith(self._cr.get('flowhub "prefix"', 'release'))]):
+            raise RuntimeError("You already have a release in the works - please finish that one.")
 
-    def publish_release(self):
-        # pull canon
+        if self.__debug > 0:
+            print "creating new release branch..."
+
+        # checkout develop
+        # checkout -b release/name
+
+        branch_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'release'),
+            name
+        )
+        self._repo.create_head(
+            branch_name,
+            commit=self.develop,
+        )
+
+        if self.__debug > 0:
+            print "Adding a tracking branch to your GitHub repo"
+        self.canon.push(
+            "{0}:{0}".format(branch_name),
+            set_upstream=True
+        )
+
+        branch = [x for x in self._repo.branches if x.name == branch_name][0]
+
+        # Checkout the branch.
+        branch.checkout()
+
+        print '\n'.join((
+            "Summary of actions: ",
+            "\tNew branch {} created, from branch {}".format(
+                branch_name,
+                self._cr.get('flowhub "structure"', 'develop')
+            ),
+            "\tChecked out branch {}".format(branch_name),
+        ))
+
+        print "Bump the release version now!"
+
+    def stage_release(self):
+        print '\n'.join((
+            "Summary of actions: ",
+            "\tRelease branch sent off to stage",
+            "\tRelease branch checked out and refreshed on stage.",
+        ))
+
+        print "LOL just kidding, this doesn't do anything."
+
+    def publish_release(self, name=None, delete_release_branch=True):
+        # fetch canon
         # checkout master
-        # merge --no-ff release
+        # merge canon master
+        # merge --no-ff name
         # tag
         # checkout develop
-        # merge --no-ff release
+        # merge canon develop
+        # merge --no-ff name
         # push --tags canon
-        # delete release branches
+        # delete release branch
         # git push origin --delete name
-        pass
+        if name is None:
+            # If no name specified, try to use the currently checked-out branch,
+            # but only if it's a feature branch.
+            name = self._repo.head.reference.name
+            if self._cr.get('flowhub "prefix"', 'release') not in name:
+                raise RuntimeError("please provide a release name, or switch to the release branch you want to publish.")
+
+            name = name.replace(self._cr.get('flowhub "prefix"', 'release'), '')
+
+        release_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'release'),
+            name,
+        )
+
+        self._repo.git.fetch(
+            self.canon.name,
+            self.master.name,
+            quiet=True,
+        )
+
+        self._repo.git.fetch(
+            self.canon.name,
+            self.develop.name,
+            quiet=True,
+        )
+
+        # TODO: ensure equality of remote and local master/develop branches
+        # TODO: handle merge conflicts.
+        # merge into master
+        self.master.checkout()
+        self._repo.git.merge(
+            release_name,
+            no_ff=True,
+        )
+
+        # and tag
+        self._repo.create_tag(
+            path=name,
+            ref=self.master,
+            message=raw_input("Message for this tag ({}): ".format(name)),
+        )
+
+        # merge into develop
+        self.develop.checkout()
+        self._repo.git.merge(
+            release_name,
+            no_ff=True,
+        )
+
+        # push to canon
+        self.canon.push()
+        self.canon.push(tags=True)
+
+        if delete_release_branch:
+            self._repo.delete_head(release_name)
+            self.canon.push(
+                release_name,
+                delete=True,
+            )
 
     def cleanup_branches(self):
         # hotfixes: remove from origin, local if match not found on canon
@@ -360,8 +490,15 @@ def handle_release_call(args, engine):
     if args.verbosity > 2:
         print "handling release"
 
-    if False:
-        pass
+    if args.action == 'start':
+        engine.start_release(
+            name=args.name,
+        )
+    elif args.action == 'publish':
+        engine.publish_release(
+            name=args.name,
+            delete_release_branch=(not args.no_cleanup),
+        )
     else:
         raise RuntimeError("Unimplemented command for releases: {}".format(args.action))
 
@@ -397,19 +534,23 @@ if __name__ == "__main__":
     # Features
     #
     feature_subs = feature.add_subparsers(dest='action')
+
     fstart = feature_subs.add_parser('start',
         help="start a new feature branch")
     fstart.add_argument('name', help="name of the feature")
     fstart.add_argument('--no-track', default=False, action='store_true',
         help="do *not* set up a tracking branch on origin.")
+
     fwork = feature_subs.add_parser('work',
         help="switch to a different feature (by name)")
     fwork.add_argument('name', help="name of feature to switch to")
+
     fpublish = feature_subs.add_parser('publish',
         help="send the current feature branch to origin and create a pull-request")
     fpublish.add_argument('name', nargs='?',
         default=None,
         help='name of feature to publish. If not given, uses current feature')
+
     fabandon = feature_subs.add_parser('abandon',
         help="remove a feature branch completely"
     )
@@ -421,6 +562,7 @@ if __name__ == "__main__":
     # Hotfixes
     #
     hotfix_subs = hotfix.add_subparsers(dest='action')
+
     hstart = hotfix_subs.add_parser('start',
         help="start a new hotfix branch")
     apply = hotfix_subs.add_parser('apply',
@@ -430,14 +572,27 @@ if __name__ == "__main__":
     # Releases
     #
     release_subs = release.add_subparsers(dest='action')
+
     rstart = release_subs.add_parser('start',
         help="start a new release branch")
     rstart.add_argument('name', help="name of the release branch.")
-    rprepare = release_subs.add_parser('prepare',
+
+    rstage = release_subs.add_parser('stage',
         help="send a release branch to a staging environment")
+
     rpublish = release_subs.add_parser('publish',
         help="merge a release branch into master and develop branches")
+    rpublish.add_argument('name', nargs='?',
+        help="name of release to publish. if not specified, current branch is assumed.")
+    rpublish.add_argument('--no-cleanup', action='store_true',
+        default=False,
+        help="do not delete the release branch after a successful publish",
+    )
 
+    rabandon = release_subs.add_parser('abandon',
+        help='abort a release branch')
+    rabandon.add_argument('name', nargs='?',
+        help='name of release to abandon. if not specified, current branch is assumed.')
     #
     # Cleanup
     #
