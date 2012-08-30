@@ -313,9 +313,8 @@ class Engine(object):
 
         if self.__debug > 0:
             print "Adding a tracking branch to your GitHub repo"
-        self._repo.git.push(
-            self._cr.get('flowhub "structure"', 'canon'),
-            branch_name,
+        self.canon.push(
+            "{0}:{0}".format(branch_name),
             set_upstream=True
         )
 
