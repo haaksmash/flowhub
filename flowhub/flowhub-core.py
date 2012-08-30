@@ -338,6 +338,8 @@ class Engine(object):
             "\tChecked out branch {}".format(branch_name),
         ))
 
+        print "Bump the release version now!"
+
     def stage_release(self):
         print '\n'.join((
             "Summary of actions: ",
