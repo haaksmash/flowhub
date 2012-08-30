@@ -97,8 +97,10 @@ When the release is polished to Suzy's satisfaction, she publishes the release:
     Message for this tag (0.3): Lotta cool stuff here!
     # Some passwords
     Summary of actions:
-        branch release/0.3 merged into branch master (--no-ff)
-        branch master's HEAD tagged (0.3) "Lotta cool stuff here!"
-        branch release/0.3 merged into branch develop (--no-ff)
-        master, develop, and tags pushed to canon.
-        branch release/0.3 deleted.
+                Latest objects fetched from canon
+                Branch release/0.3 merged into master
+                New tag (0.3:"Lotta cool stuf here!") created at master's tip
+                Branch release/0.3 merged into develop
+                Branch release/0.3 removed
+                master, develop, and tags have been pushed to canon
+                Checked out branch develop
