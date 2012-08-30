@@ -298,9 +298,9 @@ class Engine(object):
 
         if self.__debug > 0:
             print "creating new release branch..."
-        # Checkout develop
-        # checkout -b feature_prefix+branch_name
-        # push -u origin feature_prefix+branch_name
+
+        # checkout develop
+        # checkout -b release/name
 
         branch_name = "{}{}".format(
             self._cr.get('flowhub "prefix"', 'release'),
@@ -353,7 +353,57 @@ class Engine(object):
         # push --tags canon
         # delete release branch
         # git push origin --delete name
-        pass
+
+        release_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'release'),
+            name,
+        )
+
+        self._repo.git.fetch(
+            self.canon.name,
+            self.master.name,
+            quiet=True,
+        )
+
+        self._repo.git.fetch(
+            self.canon.name,
+            self.develop.name,
+            quiet=True,
+        )
+
+        # TODO: ensure equality of remote and local master/develop branches
+        # TODO: handle merge conflicts.
+        # merge into master
+        self.master.checkout()
+        self._repo.git.merge(
+            release_name,
+            no_ff=True,
+        )
+
+        # and tag
+        self._repo.create_tag(
+            path=name,
+            ref=self.master,
+            message=raw_input("Message for this tag ({}): ".format(name)),
+        )
+
+        # merge into develop
+        self.develop.checkout()
+        self._repo.git.merge(
+            release_name,
+            no_ff=True,
+        )
+
+        # push to canon
+        self.canon.push()
+        self.canon.push(tags=True)
+
+        if delete_release_branch:
+            self._repo.delete_head(release_name)
+            self.canon.push(
+                release_name,
+                delete=True,
+            )
 
     def cleanup_branches(self):
         # hotfixes: remove from origin, local if match not found on canon
@@ -399,9 +449,7 @@ def handle_feature_call(args, engine):
         engine.work_feature(name=args.name)
 
     elif args.action == 'publish':
-        engine.publish_feature(name=args.name,
-            delete_release_branch=(not args.no_cleanup),
-        )
+        engine.publish_feature(name=args.name)
 
     elif args.action == 'abandon':
         engine.abandon_feature(
@@ -427,7 +475,10 @@ def handle_release_call(args, engine):
         print "handling release"
 
     if args.action == 'start':
-        engine.start_release(name=args.name)
+        engine.start_release(
+            name=args.name,
+            delete_release_branch=(not args.no_cleanup),
+        )
     else:
         raise RuntimeError("Unimplemented command for releases: {}".format(args.action))
 
