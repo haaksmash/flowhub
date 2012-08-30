@@ -270,7 +270,7 @@ class Engine(object):
             )
         print "url: {}".format(pr.issue_url)
 
-    def create_release(self, name):
+    def start_release(self, name):
         # checkout develop
         # if already release branch, abort.
         # checkout -b relase_prefix+branch_name
@@ -314,15 +314,21 @@ class Engine(object):
             "\tchecked out branch {}".format(branch_name),
         ))
 
-    def prepare_release(self):
-        pass
+    def stage_release(self):
+        print '\n'.join((
+            "summary of actions: ",
+            "\tRelease branch sent off to stage",
+            "\tRelease branch checked out and refreshed on stage.",
+        ))
 
     def publish_release(self):
-        # pull canon
+        # fetch canon
         # checkout master
+        # merge canon master
         # merge --no-ff release
         # tag
         # checkout develop
+        # merge canon develop
         # merge --no-ff release
         # push --tags canon
         # delete release branches
@@ -398,8 +404,8 @@ def handle_release_call(args, engine):
     if args.verbosity > 2:
         print "handling release"
 
-    if False:
-        pass
+    if args.action == 'start':
+        engine.start_release()
     else:
         raise RuntimeError("Unimplemented command for releases: {}".format(args.action))
 
@@ -471,7 +477,7 @@ if __name__ == "__main__":
     rstart = release_subs.add_parser('start',
         help="start a new release branch")
     rstart.add_argument('name', help="name of the release branch.")
-    rprepare = release_subs.add_parser('prepare',
+    rstage = release_subs.add_parser('stage',
         help="send a release branch to a staging environment")
     rpublish = release_subs.add_parser('publish',
         help="merge a release branch into master and develop branches")
