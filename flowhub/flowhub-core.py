@@ -277,6 +277,9 @@ class Engine(object):
         if name is None:
             raise RuntimeError("Please provide a release name.")
 
+        if any([x for x in self._repo.branches if x.name.startswith(self._cr.get('flowhub "prefix"', 'release'))]):
+            raise RuntimeError("You already have a release in the works - please finish that one.")
+
         if self.__debug > 0:
             print "creating new release branch..."
         # Checkout develop
@@ -306,17 +309,17 @@ class Engine(object):
         branch.checkout()
 
         print '\n'.join((
-            "summary of actions: ",
-            "\tnew branch {} created, from branch {}".format(
+            "Summary of actions: ",
+            "\tNew branch {} created, from branch {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'develop')
             ),
-            "\tchecked out branch {}".format(branch_name),
+            "\tChecked out branch {}".format(branch_name),
         ))
 
     def stage_release(self):
         print '\n'.join((
-            "summary of actions: ",
+            "Summary of actions: ",
             "\tRelease branch sent off to stage",
             "\tRelease branch checked out and refreshed on stage.",
         ))
