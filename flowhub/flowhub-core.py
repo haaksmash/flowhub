@@ -441,19 +441,23 @@ if __name__ == "__main__":
     # Features
     #
     feature_subs = feature.add_subparsers(dest='action')
+
     fstart = feature_subs.add_parser('start',
         help="start a new feature branch")
     fstart.add_argument('name', help="name of the feature")
     fstart.add_argument('--no-track', default=False, action='store_true',
         help="do *not* set up a tracking branch on origin.")
+
     fwork = feature_subs.add_parser('work',
         help="switch to a different feature (by name)")
     fwork.add_argument('name', help="name of feature to switch to")
+
     fpublish = feature_subs.add_parser('publish',
         help="send the current feature branch to origin and create a pull-request")
     fpublish.add_argument('name', nargs='?',
         default=None,
         help='name of feature to publish. If not given, uses current feature')
+
     fabandon = feature_subs.add_parser('abandon',
         help="remove a feature branch completely"
     )
@@ -465,6 +469,7 @@ if __name__ == "__main__":
     # Hotfixes
     #
     hotfix_subs = hotfix.add_subparsers(dest='action')
+
     hstart = hotfix_subs.add_parser('start',
         help="start a new hotfix branch")
     apply = hotfix_subs.add_parser('apply',
@@ -474,15 +479,19 @@ if __name__ == "__main__":
     # Releases
     #
     release_subs = release.add_subparsers(dest='action')
+
     rstart = release_subs.add_parser('start',
         help="start a new release branch")
     rstart.add_argument('name', help="name of the release branch.")
+
     rstage = release_subs.add_parser('stage',
         help="send a release branch to a staging environment")
+
     rpublish = release_subs.add_parser('publish',
         help="merge a release branch into master and develop branches")
     rpublish.add_argument('name', nargs='?',
         help="name of release to publish. if not specified, current branch is assumed.")
+
     rabandon = release_subs.add_parser('abandon',
         help='abort a release branch')
     rabandon.add_argument('name', nargs='?',
