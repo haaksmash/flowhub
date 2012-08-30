@@ -396,10 +396,11 @@ class Engine(object):
         )
 
         # and tag
+        tag_message = raw_input("Message for this tag ({}): ".format(name)),
         self._repo.create_tag(
             path=name,
             ref=self.master,
-            message=raw_input("Message for this tag ({}): ".format(name)),
+            message=tag_message
         )
 
         # merge into develop
@@ -419,6 +420,17 @@ class Engine(object):
                 release_name,
                 delete=True,
             )
+
+            "\n\t".join((
+                "Summary of actions:",
+                "Latest objects fetched from {}".format(self.canon.name),
+                "Branch {} merged into {}".format(release_name, self.master.name),
+                "New tag ({}:{}) created at {}'s tip".format(name, tag_message, self.master.name),
+                "Branch {} merged into {}".format(release_name, self.develop.name),
+                "Branch {} {}".format(release_name, 'removed' if delete_release_branch else "still available"),
+                "{}, {}, and tags have been pushed to {}".format(self.master.name, self.develop.name, self.canon.name)
+                "Checked out branch {}".format(self.develop.name),
+            ))
 
     def cleanup_branches(self):
         # hotfixes: remove from origin, local if match not found on canon
