@@ -105,6 +105,14 @@ class Engine(object):
     def master(self):
         return [x for x in self._repo.heads if x.name == self._cr.get('flowhub "structure"', 'master')][0]
 
+    @property
+    def origin(self):
+        return self._repo.remote(self._cr.get('flowhub "structure"', 'origin'))
+
+    @property
+    def canon(self):
+        return self._repo.remote(self._cr.get('flowhub "structure"', 'canon'))
+
     def setup_repository_structure(self):
         # make the repo...correct.
         pass
