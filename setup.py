@@ -8,6 +8,7 @@ setup(
     name="flowhub",
     version='0.2.0',
     description="Git-flow adapted for GitHub",
+    long_description=open("README.rst").read(),
     author="Haak Saxberg",
     url="http://github.com/haaksmash/flowhub",
     packages=find_packages(),
