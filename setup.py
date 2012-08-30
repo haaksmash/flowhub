@@ -6,12 +6,16 @@ import os
 
 setup(
     name="flowhub",
-    version='0.2',
+    version='0.2.0',
     description="Git-flow adapted for GitHub",
     author="Haak Saxberg",
     url="http://github.com/haaksmash/flowhub",
     packages=find_packages(),
     scripts=[
         os.path.join('bin', 'flowhub')
+    ],
+    install_requires=[
+        'GitPython == 0.3.2.RC1',
+        'PyGithub == 1.4',
     ],
 )
