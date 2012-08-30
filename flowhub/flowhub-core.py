@@ -7,7 +7,7 @@ import git
 from github import Github
 import warnings
 
-__version__ = "0.1"
+__version__ = "0.2"
 
 class Engine(object):
 
@@ -194,7 +194,7 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.get('flowhub "prefix"', 'feature') not in name:
-                raise RuntimeError("Please provide a feature name, or switch to a feature branch.")
+                raise RuntimeError("Please provide a feature name, or switch to the feature branch you want to abandon.")
 
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
@@ -237,7 +237,7 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.get('flowhub "prefix"', 'feature') not in name:
-                raise RuntimeError("please provide a feature name, or switch to a feature branch.")
+                raise RuntimeError("please provide a feature name, or switch to the feature branch you want to publish.")
 
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
@@ -338,6 +338,8 @@ class Engine(object):
             "\tChecked out branch {}".format(branch_name),
         ))
 
+        print "Bump the release version now!"
+
     def stage_release(self):
         print '\n'.join((
             "Summary of actions: ",
@@ -359,6 +361,14 @@ class Engine(object):
         # push --tags canon
         # delete release branch
         # git push origin --delete name
+        if name is None:
+            # If no name specified, try to use the currently checked-out branch,
+            # but only if it's a feature branch.
+            name = self._repo.head.reference.name
+            if self._cr.get('flowhub "prefix"', 'release') not in name:
+                raise RuntimeError("please provide a release name, or switch to the release branch you want to publish.")
+
+            name = name.replace(self._cr.get('flowhub "prefix"', 'release'), '')
 
         release_name = "{}{}".format(
             self._cr.get('flowhub "prefix"', 'release'),
