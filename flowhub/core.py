@@ -513,7 +513,7 @@ def handle_cleanup_call(args, engine):
         raise RuntimeError("Unimplemented command for cleanups: {}".format(args.action))
 
 
-if __name__ == "__main__":
+def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
     parser.add_argument('--no-gh', action='store_true', default=False)
@@ -621,3 +621,6 @@ if __name__ == "__main__":
 
     else:
         raise RuntimeError("Unrecognized command: {}".format(args.subparser))
+
+if __name__ == "__main__":
+    run()
