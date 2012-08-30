@@ -292,6 +292,14 @@ class Engine(object):
             commit=self._repo.heads.develop,  # Requires a develop branch.
         )
 
+        if self.__debug > 0:
+            print "Adding a tracking branch to your GitHub repo"
+        self._repo.git.push(
+            self._cr.get('flowhub "structure"', 'canon'),
+            branch_name,
+            set_upstream=True
+        )
+
         branch = [x for x in self._repo.branches if x.name == branch_name][0]
 
         # Checkout the branch.
