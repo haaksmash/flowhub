@@ -5,6 +5,7 @@ from ConfigParser import NoOptionError, NoSectionError
 import getpass
 import git
 from github import Github
+import warnings
 
 
 class Engine(object):
@@ -26,6 +27,12 @@ class Engine(object):
             self._cr = self._repo.config_reader()
 
             self._gh_repo = self._gh.get_user().get_repo(self._cr.get('flowhub "structure"', 'name'))
+
+            if self._gh.rate_limiting[0] < 100:
+                warnings.warn("You are close to exceeding your GitHub access rate; {} left out of {} initially".format(*self._gh.rate_limiting))
+        else:
+            if self.__debug > 0:
+                print "Skipping auth - GitHub accesses will fail."
 
     def do_auth(self):
         """Generates the authorization to do things with github."""
@@ -107,7 +114,7 @@ class Engine(object):
             raise RuntimeError("Please provide a feature name.")
 
         if self.__debug > 0:
-            print "Creating new feature branch..."
+            print "creating new feature branch..."
         # Checkout develop
         # checkout -b feature_prefix+branch_name
         # push -u origin feature_prefix+branch_name
@@ -122,6 +129,8 @@ class Engine(object):
         )
 
         if create_tracking_branch:
+            if self.__debug > 0:
+                print "Adding a tracking branch to your GitHub repo"
             self._repo.git.push(
                 self._cr.get('flowhub "structure"', 'origin'),
                 branch_name,
@@ -129,21 +138,23 @@ class Engine(object):
             )
 
         branch = [x for x in self._repo.branches if x.name == branch_name][0]
+
         # Checkout the branch.
         branch.checkout()
 
         print '\n'.join((
-            "Summary of actions: ",
-            "\tNew branch {} created, from branch {}".format(
+            "summary of actions: ",
+            "\tnew branch {} created, from branch {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'develop')
             ),
-            "\tSwitched to branch {}".format(branch_name),
+            "\tchecked out branch {}".format(branch_name),
         ))
 
     def work_feature(self, name=None):
+        """Simply checks out the feature branch for the named feature."""
         if name is None:
-            raise RuntimeError("Please provide a feature name.")
+            raise RuntimeError("please provide a feature name.")
 
         if self.__debug > 0:
             print "switching to a feature branch..."
@@ -152,15 +163,26 @@ class Engine(object):
             self._cr.get('flowhub "prefix"', 'feature'),
             name
         )
-        branch = [x for x in self._repo.branches if x.name == branch_name][0]
-        branch.checkout()
+        branches = [x for x in self._repo.branches if x.name == branch_name]
+        if branches:
+            branch = branches[0]
+            branch.checkout()
+
+        else:
+            raise RuntimeError("no feature with name {}".format(name))
 
     def abandon_feature(self, name=None):
         if name is None:
-            raise RuntimeError("Please provide a feature name.")
+            # If no name specified, try to use the currently checked-out branch,
+            # but only if it's a feature branch.
+            name = self._repo.head.reference.name
+            if self._cr.get('flowhub "prefix"', 'feature') not in name:
+                raise RuntimeError("Please provide a feature name, or switch to a feature branch.")
+
+            name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
         if self.__debug > 0:
-            print "Abandoning feature branch..."
+            print "abandoning feature branch..."
 
         # checkout develop
         # branch -D feature_prefix+name
@@ -182,18 +204,70 @@ class Engine(object):
         )
 
         print "\n".join((
-            "Summary of actions: ",
-            "\tDeleted branch {} locally and from remote {}".format(
+            "summary of actions: ",
+            "\tdeleted branch {} locally and from remote {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'origin')
             ),
-            "\tChecked out branch {}".format(
+            "\tchecked out branch {}".format(
                 self._cr.get('flowhub "structure"', 'develop'),
             ),
         ))
 
-    def publish_feature(self):
-        gh = self._repo.remote(self._cr.get('flowhub "structure"', 'origin'))
+    def publish_feature(self, name):
+        if name is None:
+            # If no name specified, try to use the currently checked-out branch,
+            # but only if it's a feature branch.
+            name = self._repo.head.reference.name
+            if self._cr.get('flowhub "prefix"', 'feature') not in name:
+                raise RuntimeError("please provide a feature name, or switch to a feature branch.")
+
+            name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
+
+        branch_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'feature'),
+            name
+        )
+        self._repo.git.push(
+                self._cr.get('flowhub "structure"', 'origin'),
+                branch_name,
+                set_upstream=True
+        )
+
+        base = self._cr.get('flowhub "structure"', 'develop')
+        head = "{}:{}".format(self._gh.get_user().login, branch_name)
+
+        prs = [x for x in self._gh_repo.parent.get_pulls('open') if x.head.label == head]
+        if prs:
+            # If there's already a pull-request, don't bother hitting the gh api.
+            print "new commits added to existing pull-request."
+            print "url: {}".format(prs[0].issue_url)
+            return
+
+        print "setting up new pull-request"
+        is_issue = raw_input("Is this feature answering an issue? [y/N] ") == 'y'
+
+        if not is_issue:
+            title = raw_input("Title: ")
+            body = raw_input("Description (remember, you can use GitHub markdown):\n")
+
+            if self.__debug > 1:
+                print (title, body, base, head)
+            pr = self._gh_repo.parent.create_pull(
+                title=title,
+                body=body,
+                base=base,
+                head=head,
+            )
+        else:
+            issue_number = raw_input("Issue number: ")
+            issue = self._gh_repo.parent.get_issue(int(issue_number))
+            pr = self._gh_repo.parent.create_pull(
+                issue=issue,
+                base=base,
+                head=head,
+            )
+        print "url: {}".format(pr.issue_url)
 
     def create_release(self):
         # checkout develop
@@ -260,7 +334,7 @@ def handle_feature_call(args, engine):
         engine.work_feature(name=args.name)
 
     elif args.action == 'publish':
-        engine.publish_feature()
+        engine.publish_feature(name=args.name)
 
     elif args.action == 'abandon':
         engine.abandon_feature(
@@ -304,6 +378,8 @@ def handle_cleanup_call(args, engine):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
+    parser.add_argument('--no-gh', action='store_true', default=False)
+
     subparsers = parser.add_subparsers(dest="subparser")
     init = subparsers.add_parser('init',
         help="set up a repository to use flowhub",)
@@ -316,6 +392,9 @@ if __name__ == "__main__":
     cleanup = subparsers.add_parser('cleanup',
         help="do repository-cleanup related things",)
 
+    #
+    # Features
+    #
     feature_subs = feature.add_subparsers(dest='action')
     fstart = feature_subs.add_parser('start',
         help="start a new feature branch")
@@ -327,18 +406,28 @@ if __name__ == "__main__":
     fwork.add_argument('name', help="name of feature to switch to")
     fpublish = feature_subs.add_parser('publish',
         help="send the current feature branch to origin and create a pull-request")
+    fpublish.add_argument('name', nargs='?',
+        default=None,
+        help='name of feature to publish. If not given, uses current feature')
     fabandon = feature_subs.add_parser('abandon',
         help="remove a feature branch completely"
     )
-    fabandon.add_argument('name',
-        help="name of the feature to abandon")
+    fabandon.add_argument('name', nargs='?',
+        default=None,
+        help="name of the feature to abandon. If not given, uses current feature")
 
+    #
+    # Hotfixes
+    #
     hotfix_subs = hotfix.add_subparsers(dest='action')
     hstart = hotfix_subs.add_parser('start',
         help="start a new hotfix branch")
     apply = hotfix_subs.add_parser('apply',
         help="apply a hotfix branch to master and develop branches")
 
+    #
+    # Releases
+    #
     release_subs = release.add_subparsers(dest='action')
     rstart = release_subs.add_parser('start',
         help="start a new release branch")
@@ -348,13 +437,16 @@ if __name__ == "__main__":
     rpublish = release_subs.add_parser('publish',
         help="merge a release branch into master and develop branches")
 
+    #
+    # Cleanup
+    #
     cleanup_subs = cleanup.add_subparsers()
 
     args = parser.parse_args()
     if args.verbosity > 2:
         print "Args: ", args
 
-    e = Engine(debug=args.verbosity)
+    e = Engine(debug=args.verbosity, skip_auth=args.no_gh)
 
     if args.subparser == 'feature':
         handle_feature_call(args, e)
@@ -372,4 +464,4 @@ if __name__ == "__main__":
         handle_init_call(args, e)
 
     else:
-        raise RuntimeError("Whoa, unrecognized command: {}".format(args.subparser))
+        raise RuntimeError("Unrecognized command: {}".format(args.subparser))
