@@ -158,13 +158,13 @@ class Engine(object):
         # Checkout the branch.
         branch.checkout()
 
-        print '\n'.join((
+        print '\n\t'.join((
             "Summary of actions: ",
-            "\tNew branch {} created, from branch {}".format(
+            "New branch {} created, from branch {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'develop')
             ),
-            "\tChecked out branch {}".format(branch_name),
+            "Checked out branch {}".format(branch_name),
         ))
 
     def work_feature(self, name=None):
@@ -219,13 +219,13 @@ class Engine(object):
             delete=True,
         )
 
-        print "\n".join((
+        print "\n\t".join((
             "Summary of actions: ",
-            "\tDeleted branch {} locally and from remote {}".format(
+            "Deleted branch {} locally and from remote {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'origin')
             ),
-            "\tChecked out branch {}".format(
+            "Checked out branch {}".format(
                 self._cr.get('flowhub "structure"', 'develop'),
             ),
         ))
@@ -328,22 +328,22 @@ class Engine(object):
         # Checkout the branch.
         branch.checkout()
 
-        print '\n'.join((
+        print '\n\t'.join((
             "Summary of actions: ",
-            "\tNew branch {} created, from branch {}".format(
+            "New branch {} created, from branch {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'develop')
             ),
-            "\tChecked out branch {}".format(branch_name),
+            "Checked out branch {}".format(branch_name),
         ))
 
         print "Bump the release version now!"
 
     def stage_release(self):
-        print '\n'.join((
+        print '\n\t'.join((
             "Summary of actions: ",
-            "\tRelease branch sent off to stage",
-            "\tRelease branch checked out and refreshed on stage.",
+            "Release branch sent off to stage",
+            "Release branch checked out and refreshed on stage.",
         ))
 
         print "LOL just kidding, this doesn't do anything."
@@ -421,14 +421,14 @@ class Engine(object):
                 delete=True,
             )
 
-            "\n\t".join((
+        print "\n\t".join((
                 "Summary of actions:",
                 "Latest objects fetched from {}".format(self.canon.name),
                 "Branch {} merged into {}".format(release_name, self.master.name),
                 "New tag ({}:{}) created at {}'s tip".format(name, tag_message, self.master.name),
                 "Branch {} merged into {}".format(release_name, self.develop.name),
                 "Branch {} {}".format(release_name, 'removed' if delete_release_branch else "still available"),
-                "{}, {}, and tags have been pushed to {}".format(self.master.name, self.develop.name, self.canon.name)
+                "{}, {}, and tags have been pushed to {}".format(self.master.name, self.develop.name, self.canon.name),
                 "Checked out branch {}".format(self.develop.name),
             ))
 
