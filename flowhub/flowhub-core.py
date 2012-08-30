@@ -332,17 +332,19 @@ class Engine(object):
             "\tRelease branch checked out and refreshed on stage.",
         ))
 
-    def publish_release(self, name=None):
+        print "LOL just kidding, this doesn't do anything."
+
+    def publish_release(self, name=None, delete_release_branch=True):
         # fetch canon
         # checkout master
         # merge canon master
-        # merge --no-ff release
+        # merge --no-ff name
         # tag
         # checkout develop
         # merge canon develop
-        # merge --no-ff release
+        # merge --no-ff name
         # push --tags canon
-        # delete release branches
+        # delete release branch
         # git push origin --delete name
         pass
 
@@ -390,7 +392,9 @@ def handle_feature_call(args, engine):
         engine.work_feature(name=args.name)
 
     elif args.action == 'publish':
-        engine.publish_feature(name=args.name)
+        engine.publish_feature(name=args.name,
+            delete_release_branch=(not args.no_cleanup),
+        )
 
     elif args.action == 'abandon':
         engine.abandon_feature(
@@ -502,6 +506,10 @@ if __name__ == "__main__":
         help="merge a release branch into master and develop branches")
     rpublish.add_argument('name', nargs='?',
         help="name of release to publish. if not specified, current branch is assumed.")
+    rpublish.add_argument('--no-cleanup', action='store_true',
+        default=False,
+        help="do not delete the release branch after a successful publish",
+    )
 
     rabandon = release_subs.add_parser('abandon',
         help='abort a release branch')
