@@ -210,7 +210,6 @@ class Engine(object):
 
         self._repo.delete_head(
             branch_name,
-            force=True,
         )
         self.origin.push(
             branch_name,
@@ -251,11 +250,15 @@ class Engine(object):
             name,
         )
 
-        self._repo.delete_head(branch_name)
+        self._repo.delete_head(
+            branch_name,
+            force=True,
+        )
         self._repo.git.push(
             self._cr.get('flowhub "structure"', 'origin'),
             branch_name,
             delete=True,
+            force=True,
         )
 
         print "\n\t".join((
