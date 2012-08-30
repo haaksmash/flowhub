@@ -483,6 +483,10 @@ if __name__ == "__main__":
         help="merge a release branch into master and develop branches")
     rpublish.add_argument('name', nargs='?',
         help="name of release to publish. if not specified, current branch is assumed.")
+    rabandon = release_subs.add_parser('abandon',
+        help='abort a release branch')
+    rabandon.add_argument('name', nargs='?',
+        help='name of release to abandon. if not specified, current branch is assumed.')
     #
     # Cleanup
     #
