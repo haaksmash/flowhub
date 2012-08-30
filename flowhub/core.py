@@ -515,7 +515,8 @@ def handle_cleanup_call(args, engine):
 def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
-    parser.add_argument('--no-gh', action='store_true', default=False)
+    parser.add_argument('--no-gh', action='store_true', default=False,
+        help='do not talk to GitHub',)
 
     subparsers = parser.add_subparsers(dest="subparser")
     init = subparsers.add_parser('init',
