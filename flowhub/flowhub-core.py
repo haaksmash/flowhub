@@ -270,11 +270,41 @@ class Engine(object):
             )
         print "url: {}".format(pr.issue_url)
 
-    def create_release(self):
+    def create_release(self, name):
         # checkout develop
         # if already release branch, abort.
         # checkout -b relase_prefix+branch_name
-        pass
+        if name is None:
+            raise RuntimeError("Please provide a release name.")
+
+        if self.__debug > 0:
+            print "creating new release branch..."
+        # Checkout develop
+        # checkout -b feature_prefix+branch_name
+        # push -u origin feature_prefix+branch_name
+
+        branch_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'release'),
+            name
+        )
+        self._repo.create_head(
+            branch_name,
+            commit=self._repo.heads.develop,  # Requires a develop branch.
+        )
+
+        branch = [x for x in self._repo.branches if x.name == branch_name][0]
+
+        # Checkout the branch.
+        branch.checkout()
+
+        print '\n'.join((
+            "summary of actions: ",
+            "\tnew branch {} created, from branch {}".format(
+                branch_name,
+                self._cr.get('flowhub "structure"', 'develop')
+            ),
+            "\tchecked out branch {}".format(branch_name),
+        ))
 
     def prepare_release(self):
         pass
