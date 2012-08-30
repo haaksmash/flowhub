@@ -361,6 +361,14 @@ class Engine(object):
         # push --tags canon
         # delete release branch
         # git push origin --delete name
+        if name is None:
+            # If no name specified, try to use the currently checked-out branch,
+            # but only if it's a feature branch.
+            name = self._repo.head.reference.name
+            if self._cr.get('flowhub "prefix"', 'release') not in name:
+                raise RuntimeError("please provide a release name, or switch to the release branch you want to publish.")
+
+            name = name.replace(self._cr.get('flowhub "prefix"', 'release'), '')
 
         release_name = "{}{}".format(
             self._cr.get('flowhub "prefix"', 'release'),
