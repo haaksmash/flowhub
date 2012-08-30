@@ -7,7 +7,6 @@ import git
 from github import Github
 import warnings
 
-__version__ = "0.2"
 
 class Engine(object):
 
@@ -131,7 +130,7 @@ class Engine(object):
             raise RuntimeError("Please provide a feature name.")
 
         if self.__debug > 0:
-            print "creating new feature branch..."
+            print "Creating new feature branch..."
         # Checkout develop
         # checkout -b feature_prefix+branch_name
         # push -u origin feature_prefix+branch_name
@@ -160,12 +159,12 @@ class Engine(object):
         branch.checkout()
 
         print '\n'.join((
-            "summary of actions: ",
-            "\tnew branch {} created, from branch {}".format(
+            "Summary of actions: ",
+            "\tNew branch {} created, from branch {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'develop')
             ),
-            "\tchecked out branch {}".format(branch_name),
+            "\tChecked out branch {}".format(branch_name),
         ))
 
     def work_feature(self, name=None):
@@ -199,7 +198,7 @@ class Engine(object):
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
         if self.__debug > 0:
-            print "abandoning feature branch..."
+            print "Abandoning feature branch..."
 
         # checkout develop
         # branch -D feature_prefix+name
@@ -221,12 +220,12 @@ class Engine(object):
         )
 
         print "\n".join((
-            "summary of actions: ",
-            "\tdeleted branch {} locally and from remote {}".format(
+            "Summary of actions: ",
+            "\tDeleted branch {} locally and from remote {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'origin')
             ),
-            "\tchecked out branch {}".format(
+            "\tChecked out branch {}".format(
                 self._cr.get('flowhub "structure"', 'develop'),
             ),
         ))
@@ -397,10 +396,11 @@ class Engine(object):
         )
 
         # and tag
+        tag_message = raw_input("Message for this tag ({}): ".format(name)),
         self._repo.create_tag(
             path=name,
             ref=self.master,
-            message=raw_input("Message for this tag ({}): ".format(name)),
+            message=tag_message
         )
 
         # merge into develop
@@ -420,6 +420,17 @@ class Engine(object):
                 release_name,
                 delete=True,
             )
+
+            "\n\t".join((
+                "Summary of actions:",
+                "Latest objects fetched from {}".format(self.canon.name),
+                "Branch {} merged into {}".format(release_name, self.master.name),
+                "New tag ({}:{}) created at {}'s tip".format(name, tag_message, self.master.name),
+                "Branch {} merged into {}".format(release_name, self.develop.name),
+                "Branch {} {}".format(release_name, 'removed' if delete_release_branch else "still available"),
+                "{}, {}, and tags have been pushed to {}".format(self.master.name, self.develop.name, self.canon.name)
+                "Checked out branch {}".format(self.develop.name),
+            ))
 
     def cleanup_branches(self):
         # hotfixes: remove from origin, local if match not found on canon
@@ -513,10 +524,11 @@ def handle_cleanup_call(args, engine):
         raise RuntimeError("Unimplemented command for cleanups: {}".format(args.action))
 
 
-if __name__ == "__main__":
+def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
-    parser.add_argument('--no-gh', action='store_true', default=False)
+    parser.add_argument('--no-gh', action='store_true', default=False,
+        help='do not talk to GitHub',)
 
     subparsers = parser.add_subparsers(dest="subparser")
     init = subparsers.add_parser('init',
@@ -621,3 +633,6 @@ if __name__ == "__main__":
 
     else:
         raise RuntimeError("Unrecognized command: {}".format(args.subparser))
+
+if __name__ == "__main__":
+    run()

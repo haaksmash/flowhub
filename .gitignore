@@ -2,3 +2,7 @@
 .codeintel
 flowhub.sublime-workspace
 flowhub.sublime-project
+build
+*.pyc
+dist
+flowhub.egg-info
