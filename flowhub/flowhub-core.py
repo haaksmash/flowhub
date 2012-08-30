@@ -321,7 +321,7 @@ class Engine(object):
             "\tRelease branch checked out and refreshed on stage.",
         ))
 
-    def publish_release(self):
+    def publish_release(self, name=None):
         # fetch canon
         # checkout master
         # merge canon master
@@ -405,7 +405,7 @@ def handle_release_call(args, engine):
         print "handling release"
 
     if args.action == 'start':
-        engine.start_release()
+        engine.start_release(name=args.name)
     else:
         raise RuntimeError("Unimplemented command for releases: {}".format(args.action))
 
@@ -481,7 +481,8 @@ if __name__ == "__main__":
         help="send a release branch to a staging environment")
     rpublish = release_subs.add_parser('publish',
         help="merge a release branch into master and develop branches")
-
+    rpublish.add_argument('name', nargs='?',
+        help="name of release to publish. if not specified, current branch is assumed.")
     #
     # Cleanup
     #
