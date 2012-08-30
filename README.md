@@ -1,3 +1,3 @@
 Flowhub
 =====
-###### Git Flow for GitHub
+###### Git Flow adapted to GitHub
