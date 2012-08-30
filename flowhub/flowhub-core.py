@@ -251,7 +251,6 @@ class Engine(object):
                 set_upstream=True
         )
 
-
         if self.canon == self.origin:
             gh_parent = self._gh_repo
             base = self.develop.name
