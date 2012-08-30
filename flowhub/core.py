@@ -7,7 +7,6 @@ import git
 from github import Github
 import warnings
 
-__version__ = "0.2"
 
 class Engine(object):
 
