@@ -97,6 +97,14 @@ class Engine(object):
     def __write_conf(self):
         self._cw.write()
 
+    @property
+    def develop(self):
+        return [x for x in self._repo.heads if x.name == self._cr.get('flowhub "structure"', 'develop')][0]
+
+    @property
+    def master(self):
+        return [x for x in self._repo.heads if x.name == self._cr.get('flowhub "structure"', 'master')][0]
+
     def setup_repository_structure(self):
         # make the repo...correct.
         pass
@@ -126,7 +134,7 @@ class Engine(object):
         )
         self._repo.create_head(
             branch_name,
-            commit=self._repo.heads.develop,  # Requires a develop branch.
+            commit=self.develop,  # Requires a develop branch.
         )
 
         if create_tracking_branch:
@@ -189,7 +197,7 @@ class Engine(object):
         # branch -D feature_prefix+name
         # push --delete origin feature_prefix+name
 
-        head = [x for x in self._repo.heads if x.name == self._cr.get('flowhub "structure"', 'develop')][0]
+        head = self.develop
         head.checkout()
 
         branch_name = "{}{}".format(
@@ -292,7 +300,7 @@ class Engine(object):
         )
         self._repo.create_head(
             branch_name,
-            commit=self._repo.heads.develop,  # Requires a develop branch.
+            commit=self.develop,
         )
 
         if self.__debug > 0:
