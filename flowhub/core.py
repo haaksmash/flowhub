@@ -9,8 +9,8 @@ import warnings
 
 from decorators import with_summary
 
-class Engine(object):
 
+class Engine(object):
     def __init__(self, debug=0, skip_auth=False):
         self.__debug = debug
 
