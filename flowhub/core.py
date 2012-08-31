@@ -392,6 +392,23 @@ class Engine(object):
                 pr.issue_url)
         ]
 
+    def list_features(self):
+        for branch in self._repo.branches:
+            if not branch.name.startswith(self._cr.get('flowhub "prefix"', 'feature')):
+                continue
+            display = '{}'.format(
+                branch.name.replace(
+                    self._cr.get('flowhub "prefix"', 'feature'),
+                    ''
+                ),
+            )
+            if self._repo.head.reference.name == branch.name:
+                display = '* {}'.format(display)
+            else:
+                display = '  {}'.format(display)
+
+            print display
+
     @with_summary
     def start_release(self, name, summary=None):
         # checkout develop
@@ -744,7 +761,8 @@ def handle_feature_call(args, engine):
             engine.accept_feature(
                 name=args.name,
             )
-
+    elif args.action == 'list':
+        engine.list_features()
     else:
         raise RuntimeError("Unimplemented command for features: {}".format(args.action))
 
@@ -842,6 +860,8 @@ def run():
     faccepted.add_argument('name', nargs='?',
         default=None,
         help="name of the accepted feature. If not given, assumes current feature")
+    flist = feature_subs.add_parser('list',
+        help='list the feature names on this repository')
 
     #
     # Hotfixes
