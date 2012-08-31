@@ -590,8 +590,9 @@ class Engine(object):
             "\n\nBump the release version now!".format(branch_name),
         ]
 
-    def apply_hotfix(self):
-        # pull canon
+    @with_summary
+    def apply_hotfix(self, name, summary=None):
+        # fetch canon
         # checkout master
         # merge --no-ff hotfix
         # tag
@@ -599,7 +600,77 @@ class Engine(object):
         # merge --no-ff hotfix
         # push --tags canon
         # delete hotfix branches
-        pass
+        if name is None:
+            # If no name specified, try to use the currently checked-out branch,
+            # but only if it's a feature branch.
+            name = self._repo.head.reference.name
+            if self._cr.get('flowhub "prefix"', 'hotfix') not in name:
+                raise RuntimeError("please provide a hotfix name, or switch to the hotfix branch you want to publish.")
+
+            name = name.replace(self._cr.get('flowhub "prefix"', 'hotfix'), '')
+
+        hotfix_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'hotfix'),
+            name,
+        )
+
+        self.canon.fetch()
+        summary += [
+            "Latest objects fetched from {}".format(self.canon.name),
+        ]
+
+        # TODO: ensure equality of remote and local master/develop branches
+        # TODO: handle merge conflicts.
+        # merge into master
+        self.master.checkout()
+        self._repo.git.merge(
+            hotfix_name,
+            no_ff=True,
+        )
+        summary += [
+            "Branch {} merged into {}".format(hotfix_name, self.master.name),
+        ]
+
+        # and tag
+        tag_message = raw_input("Message for this tag ({}): ".format(name)),
+        self._repo.create_tag(
+            path=name,
+            ref=self.master,
+            message=tag_message
+        )
+        summary += [
+            "New tag ({}:{}) created at {}'s tip".format(name, tag_message, self.master.name),
+        ]
+
+        # merge into develop
+        self.develop.checkout()
+        summary += [
+            "Checked out branch {}".format(self.develop.name),
+        ]
+        self._repo.git.merge(
+            hotfix_name,
+            no_ff=True,
+        )
+        summary += [
+            "Branch {} merged into {}".format(release_name, self.develop.name),
+        ]
+
+        # push to canon
+        self.canon.push()
+        self.canon.push(tags=True)
+        summary += [
+            "{}, {}, and tags have been pushed to {}".format(self.master.name, self.develop.name, self.canon.name),
+        ]
+
+        if delete_release_branch:
+            self._repo.delete_head(release_name)
+            self.canon.push(
+                release_name,
+                delete=True,
+            )
+            summary += [
+                "Branch {} {}".format(release_name, 'removed' if delete_release_branch else "still available"),
+            ]
 
 
 def handle_init_call(args, engine):

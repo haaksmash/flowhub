@@ -173,7 +173,7 @@ When the bug's been killed, Suzy runs
     Message for this tag (0.3.1): Sorry, guys.
 
     Summary of actions:
-     - Merged hotfix/0.3.1 into branch master
+     - Branch hotfix/0.3.1 merged into master
      - New tag (0.3.1:"Sorry, guys.") created at master's tip
      - Branch hotfix/0.3.1 merged into develop
      - master, develop and tags have been pushed to canon
