@@ -9,7 +9,7 @@ def with_summary(f):
         summary = []
         f(*args, summary=summary, **kwargs)
         if summary:
-            summary = ['Summary of actions:'] + summary
+            summary = ['\nSummary of actions:'] + summary
             print "\n - ".join(summary)
 
         else:
