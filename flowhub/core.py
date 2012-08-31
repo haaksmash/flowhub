@@ -476,8 +476,11 @@ def handle_feature_call(args, engine):
         engine.work_feature(name=args.name)
 
     elif args.action == 'publish':
-        engine.publish_feature(name=args.name)
-
+        try:
+            engine.publish_feature(name=args.name)
+        except AssertionError:
+            # This is janky as shit, but running twice fixes it.
+            engine.publish_feature(name=args.name)
     elif args.action == 'abandon':
         engine.abandon_feature(
             name=args.name,
