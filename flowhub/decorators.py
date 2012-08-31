@@ -7,7 +7,7 @@ def with_summary(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         summary = []
-        f(*args, **kwargs)
+        f(*args, summary=summary, **kwargs)
         if summary:
             summary = ['Summary of actions:'] + summary
             print "\n - ".join(summary)

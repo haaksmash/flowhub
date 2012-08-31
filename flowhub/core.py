@@ -127,7 +127,9 @@ class Engine(object):
         return repo
 
     @with_summary
-    def create_feature(self, name=None, create_tracking_branch=True):
+    def create_feature(self, name=None, create_tracking_branch=True, summary=None):
+        if summary is None:
+            summary = []
         if name is None:
             raise RuntimeError("Please provide a feature name.")
 
