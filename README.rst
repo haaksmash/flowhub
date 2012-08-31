@@ -37,6 +37,9 @@ philosophy already (Flowhub doesn't require this, but it makes things easier).
 
 Suzy decides to use Flowhub.
 
+init
+++++
+
 .. code-block:: bash
 
     cd /path/to/my/clone
@@ -44,6 +47,9 @@ Suzy decides to use Flowhub.
 
 After answering all of Flowhub's questions, Suzy is ready to start working (she
 decided to keep all of Flowhub's defaults).
+
+feature start
++++++++++++++++
 
 .. code-block:: bash
 
@@ -53,6 +59,9 @@ decided to keep all of Flowhub's defaults).
     Summary of actions:
      - New branch feature/suzy-feature-the-first, from branch develop
      - Checked out out branch feature/suzy-feature-the-first
+
+feature publish
++++++++++++++++
 
 After Suzy's been working for a while, she decides it's time to get some
 feedback from the original repository. Flowhub makes this a cakewalk.
@@ -66,6 +75,9 @@ navigate to it.
 
 After she's gotten some feedback and addressed it, she runs the same command.
 Flowhub updates the pull-request for her.
+
+feature abandon/accepted
+++++++++++++++++++++++++
 
 When her pull-request has been accepted, Suzy can run
 
@@ -81,7 +93,7 @@ When her pull-request has been accepted, Suzy can run
      - Checked out branch develop
 
 from her feature branch, and Flowhub will clean things up a bit. She can also
-specify a feature name, if she's not currently on the accepted feature branch.
+specify a feature name, if she's not currently on the accepted branch.
 
 If Suzy's feature is deemed a non-started, and summarily rejected, Flowhub is
 there to comfort her:
@@ -100,6 +112,38 @@ Which will remove the feature branch she'd been working on.
 The difference between ``accepted`` and ``abandon`` is that ``accepted`` will
 complain if the feature branch hasn't been fully merged into your trunk branch;
 ``abandon`` doesn't care.
+
+feature list
+++++++++++++
+
+At any time, Suzy can get a list of her current features' names (in case she's
+been so busy that she's lost track of them, for example).
+
+.. code-block:: bash
+
+    flowhub feature list
+      suzy-feature-the-first
+    * suzy-currently-checkedout-feature
+      suzy-feature-the-millionth
+
+release/hotfix contribute
++++++++++++++++++++++++++
+
+When it's time for a release, Flowhub has your back as well. Just branch off the
+tip of the release, and work. When you're satisfied, run the ``release
+contribute`` command *while that branch is checked out*:
+
+.. code-block:: bash
+
+    flowhub release contribute
+
+It's very similar to the ``feature publish`` command, but the target of the
+pull-request is the release branch, not the trunk.
+
+``hotfix contribute`` does the same thing, but for hotfixes.
+
+Both ``contribute`` commands won't allow you to contribute branches that aren't
+descended from release/hotfix branch (as appropriate).
 
 For Managers
 ~~~~~~~~~~~~
