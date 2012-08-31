@@ -559,11 +559,30 @@ class Engine(object):
             "Checked out branch {}".format(return_branch.name),
         ]
 
-    def cleanup_branches(self):
+    @with_summary
+    def cleanup_branches(self, summary=None):
         # hotfixes: remove from origin, local if match not found on canon
         # releases: remove from origin, local if match not found on canon
-        # features: if pull request found and accepted, delete from local and origin
-        pass
+        # features: if fully merged, mark as accepted.
+
+        for branch in self._repo.branches:
+            if branch.name.startswith(self._cr.get('flowhub "prefix"', 'feature')):
+                try:
+                    self._repo.delete_head(branch.name)
+                    summary += [
+                        "Deleted local branch {}"
+                    ]
+                    remote_branch = branch.tracking_branch(),
+                    if remote_branch:
+                        remote_name = '/'.join(remote_branch.name.split('/')[1:])
+                        self.origin.push(
+                            remote_name,
+                            delete=True,
+                        )
+                        summary[-1] += ' and remote branch {}'.format(remote_branch.name)
+
+                except git.GitCommandError:
+                    pass
 
     @with_summary
     def start_hotfix(self, name, summary=None):
