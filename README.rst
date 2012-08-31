@@ -155,7 +155,7 @@ through testing, and is affecting users. Suzy doesn't panic - she has Flowhub:
 
     Summary of actions:
      - Latest objects fetched from canon
-     - branch master updated
+     - Updated master
      - New branch hotfix/0.3.1 created, from branch master
      - Pushed hotfix/0.3.1 to canon
      - Checked out branch hotfix/0.3.1
