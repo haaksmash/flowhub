@@ -113,6 +113,28 @@ class Engine(object):
     def canon(self):
         return self._repo.remote(self._cr.get('flowhub "structure"', 'canon'))
 
+    @property
+    def release(self):
+        releases = [x for x in self._repo.branches if x.name.startswith(
+                self._cr.get('flowhub "prefix"', 'release'),
+            )]
+
+        if releases:
+            return releases[0]
+        else:
+            return None
+
+    @property
+    def hotfix(self):
+        hotfixes = [x for x in self._repo.branches if x.name.startswith(
+                self._cr.get('flowhub "prefix"', 'hotfix'),
+            )]
+
+        if hotfixes:
+            return hotfixes[0]
+        else:
+            return None
+
     def setup_repository_structure(self):
         # make the repo...correct.
         pass
@@ -591,7 +613,7 @@ class Engine(object):
         ]
 
     @with_summary
-    def apply_hotfix(self, name, summary=None, delete_hotfix_branch=True):
+    def publish_hotfix(self, name, summary=None, delete_hotfix_branch=True):
         # fetch canon
         # checkout master
         # merge --no-ff hotfix
@@ -644,14 +666,18 @@ class Engine(object):
             "New tag ({}:{}) created at {}'s tip".format(name, tag_message, self.master.name),
         ]
 
-        # merge into develop
-        self.develop.checkout()
+        # merge into develop (or release, if exists)
+        if self.release:
+            trunk = self.release
+        else:
+            trunk = self.develop
+        trunk.checkout()
         self._repo.git.merge(
             hotfix_name,
             no_ff=True,
         )
         summary += [
-            "Branch {} merged into {}".format(hotfix_name, self.develop.name),
+            "Branch {} merged into {}".format(hotfix_name, trunk.name),
         ]
 
         # push to canon
@@ -731,7 +757,10 @@ def handle_hotfix_call(args, engine):
         engine.start_hotfix(
             name=args.name,
         )
-        pass
+    elif args.action == 'publish':
+        engine.publish_hotfix(
+            name=args.name,
+        )
     else:
         raise RuntimeError("Unimplemented command for hotfixes: {}".format(args.action))
 
