@@ -125,9 +125,10 @@ class Engine(object):
 
     @property
     def release(self):
+        # official version releases are named release/#.#.#
         releases = [x for x in self._repo.branches if x.name.startswith(
                 self._cr.get('flowhub "prefix"', 'release'),
-            )]
+            ) and re.match('\d.\d.\d', x.name.split('/')[-1])]
 
         if releases:
             return releases[0]
@@ -136,9 +137,10 @@ class Engine(object):
 
     @property
     def hotfix(self):
+        # official version hotfixes are named release/#.#.#
         hotfixes = [x for x in self._repo.branches if x.name.startswith(
                 self._cr.get('flowhub "prefix"', 'hotfix'),
-            )]
+            ) and re.match('\d.\d.\d', x.name.split('/')[-1])]
 
         if hotfixes:
             return hotfixes[0]
@@ -631,6 +633,9 @@ class Engine(object):
     @with_summary
     def cleanup_branches(self, summary=None, targets=""):
         current_branch = self._repo.head.reference
+        hotfix_prefix = self._cr.get('flowhub "prefix"', 'hotfix')
+        release_prefix = self._cr.get('flowhub "prefix"', 'release')
+
         for branch in self._repo.branches:
             if ('u' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'feature')))\
                 or ('r' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'release')))\
@@ -647,10 +652,20 @@ class Engine(object):
 
                 try:
                     remote_branch = branch.tracking_branch()
-                    self._repo.delete_head(branch.name)
+
+                    # If it failed because it's an un-recognizably-merged hotfix
+                    # or release contribution, but there's no hotfix/release branch
+                    # currently, delete it.
+                    if hotfix_prefix in branch.name and not self.hotfix:
+                        self._repo.delete_head(branch.name, force=True)
+                    elif release_prefix in branch.name and not self.release:
+                        self._repo.delete_head(branch.name, force=True)
+                    else:
+                        self._repo.delete_head(branch.name)
                     summary += [
                         "Deleted local branch {}".format(branch.name)
                     ]
+
                     if remote_branch:
                         # get rid of the 'origin/' part of the remote name
                         remote_name = '/'.join(remote_branch.name.split('/')[1:])
@@ -672,7 +687,8 @@ class Engine(object):
                                 branch.name,
                             )
 
-                except git.GitCommandError:
+                except git.GitCommandError as e:
+                    print e
                     continue
 
     @with_summary
