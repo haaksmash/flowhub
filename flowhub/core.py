@@ -574,6 +574,11 @@ class Engine(object):
             return
 
         branch_name = self._repo.head.reference.name
+        self._repo.git.push(
+                self._cr.get('flowhub "structure"', 'origin'),
+                branch_name,
+                set_upstream=True
+        )
         if self.canon == self.origin:
             gh_parent = self._gh_repo
             base = self.release.name
@@ -803,6 +808,12 @@ class Engine(object):
             return
 
         branch_name = self._repo.head.reference.name
+        self._repo.git.push(
+                self._cr.get('flowhub "structure"', 'origin'),
+                branch_name,
+                set_upstream=True
+        )
+
         if self.canon == self.origin:
             gh_parent = self._gh_repo
             base = self.release.name
