@@ -568,11 +568,11 @@ class Engine(object):
                 # Feature branches get removed if they're fully merged in to something else.
                 # NOTE: this will delete branch references that have no commits in them.
                 try:
+                    remote_branch = branch.tracking_branch()
                     self._repo.delete_head(branch.name)
                     summary += [
-                        "Deleted local branch {}"
+                        "Deleted local branch {}".format(branch.name)
                     ]
-                    remote_branch = branch.tracking_branch()
                     if remote_branch:
                         # get rid of the 'origin/' part of the remote name
                         remote_name = '/'.join(remote_branch.name.split('/')[1:])
@@ -581,6 +581,18 @@ class Engine(object):
                             delete=True,
                         )
                         summary[-1] += ' and remote branch {}'.format(remote_branch.name)
+                    else:
+                        # Sometimes the tracking isn't set properly (at least for empty featuers?)
+                        # so, we brute it here.
+                        if hasattr(self.origin.refs, branch.name):
+                            self.origin.push(
+                                branch.name,
+                                delete=True,
+                            )
+                            summary[-1] += '\n\tand remote branch {}/{}'.format(
+                                self.origin.name,
+                                branch.name,
+                            )
 
                 except git.GitCommandError:
                     continue
