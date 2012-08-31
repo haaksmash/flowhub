@@ -666,8 +666,12 @@ def run():
 
     hstart = hotfix_subs.add_parser('start',
         help="start a new hotfix branch")
-    apply = hotfix_subs.add_parser('apply',
-        help="apply a hotfix branch to master and develop branches")
+    hstart.add_argument('name',
+        help="name (and tag) for the hotfix")
+    hpublish = hotfix_subs.add_parser('publish',
+        help="publish the hotfix to production and trunk")
+    hpublish.add_argument('name', nargs='?',
+        help="name of hotfix to publish. If not given, uses current branch.")
 
     #
     # Releases
@@ -676,13 +680,13 @@ def run():
 
     rstart = release_subs.add_parser('start',
         help="start a new release branch")
-    rstart.add_argument('name', help="name of the release branch.")
+    rstart.add_argument('name', help="name (and tag) of the release branch.")
 
     rstage = release_subs.add_parser('stage',
         help="send a release branch to a staging environment")
 
     rpublish = release_subs.add_parser('publish',
-        help="merge a release branch into master and develop branches")
+        help="publish a release branch to production and trunk")
     rpublish.add_argument('name', nargs='?',
         help="name of release to publish. if not specified, current branch is assumed.")
     rpublish.add_argument('--no-cleanup', action='store_true',
