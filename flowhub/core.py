@@ -351,7 +351,8 @@ class Engine(object):
             base = self.develop.name
             head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
-        prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head]
+        prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head \
+                    or x.head.label == "{}:{}".format(self._gh.get_user().login, head)]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
             summary += [
