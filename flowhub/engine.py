@@ -811,7 +811,7 @@ class Engine(object):
         self.canon.push()
         self.canon.push(tags=True)
         summary += [
-            "{}, {}, and tags have been pushed to {}".format(self.master.name, self.develop.name, self.canon.name),
+            "{}, {}, and tags have been pushed to {}".format(self.master.name, trunk.name, self.canon.name),
         ]
 
         if delete_hotfix_branch:
