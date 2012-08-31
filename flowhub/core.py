@@ -841,15 +841,15 @@ def handle_cleanup_call(args, engine):
     # Get the targets for cleanup
     targets = ''
     if args.t or args.all:
-        if args.verbosity > 1:
+        if args.verbosity > 2:
             print "adding 't' to targets"
         targets += 't'
     if args.u or args.all:
-        if args.verbosity > 1:
+        if args.verbosity > 2:
             print "adding 'u' to targets"
         targets += 'u'
     if args.r or args.all:
-        if args.verbosity > 1:
+        if args.verbosity > 2:
             print "adding 'r' to targets"
         targets += 'r'
 
