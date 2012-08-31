@@ -563,17 +563,18 @@ class Engine(object):
     def cleanup_branches(self, summary=None):
         # hotfixes: remove from origin, local if match not found on canon
         # releases: remove from origin, local if match not found on canon
-        # features: if fully merged, mark as accepted.
-
         for branch in self._repo.branches:
             if branch.name.startswith(self._cr.get('flowhub "prefix"', 'feature')):
+                # Feature branches get removed if they're fully merged in to something else.
+                # NOTE: this will delete branch references that have no commits in them.
                 try:
                     self._repo.delete_head(branch.name)
                     summary += [
                         "Deleted local branch {}"
                     ]
-                    remote_branch = branch.tracking_branch(),
+                    remote_branch = branch.tracking_branch()
                     if remote_branch:
+                        # get rid of the 'origin/' part of the remote name
                         remote_name = '/'.join(remote_branch.name.split('/')[1:])
                         self.origin.push(
                             remote_name,
@@ -582,7 +583,7 @@ class Engine(object):
                         summary[-1] += ' and remote branch {}'.format(remote_branch.name)
 
                 except git.GitCommandError:
-                    pass
+                    continue
 
     @with_summary
     def start_hotfix(self, name, summary=None):
@@ -823,10 +824,7 @@ def handle_cleanup_call(args, engine):
     if args.verbosity > 2:
         print "handling cleanup"
 
-    if False:
-        pass
-    else:
-        raise RuntimeError("Unimplemented command for cleanups: {}".format(args.action))
+    engine.cleanup_branches()
 
 
 def run():
@@ -924,8 +922,6 @@ def run():
     #
     # Cleanup
     #
-    cleanup_subs = cleanup.add_subparsers()
-
     args = parser.parse_args()
     if args.verbosity > 2:
         print "Args: ", args
