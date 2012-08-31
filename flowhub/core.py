@@ -351,7 +351,8 @@ class Engine(object):
             base = self.develop.name
             head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
-        prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head]
+        prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head \
+                    or x.head.label == "{}:{}".format(self._gh.get_user().login, head)]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
             summary += [
@@ -559,11 +560,43 @@ class Engine(object):
             "Checked out branch {}".format(return_branch.name),
         ]
 
-    def cleanup_branches(self):
-        # hotfixes: remove from origin, local if match not found on canon
-        # releases: remove from origin, local if match not found on canon
-        # features: if pull request found and accepted, delete from local and origin
-        pass
+    @with_summary
+    def cleanup_branches(self, summary=None, targets=""):
+        for branch in self._repo.branches:
+            if ('u' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'feature')))\
+                or ('r' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'release')))\
+                or ('t' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'hotfix'))):
+                # Feature branches get removed if they're fully merged in to something else.
+                # NOTE: this will delete branch references that have no commits in them.
+                try:
+                    remote_branch = branch.tracking_branch()
+                    self._repo.delete_head(branch.name)
+                    summary += [
+                        "Deleted local branch {}".format(branch.name)
+                    ]
+                    if remote_branch:
+                        # get rid of the 'origin/' part of the remote name
+                        remote_name = '/'.join(remote_branch.name.split('/')[1:])
+                        self.origin.push(
+                            remote_name,
+                            delete=True,
+                        )
+                        summary[-1] += ' and remote branch {}'.format(remote_branch.name)
+                    else:
+                        # Sometimes the tracking isn't set properly (at least for empty featuers?)
+                        # so, we brute it here.
+                        if hasattr(self.origin.refs, branch.name):
+                            self.origin.push(
+                                branch.name,
+                                delete=True,
+                            )
+                            summary[-1] += '\n\tand remote branch {}/{}'.format(
+                                self.origin.name,
+                                branch.name,
+                            )
+
+                except git.GitCommandError:
+                    continue
 
     @with_summary
     def start_hotfix(self, name, summary=None):
@@ -804,10 +837,25 @@ def handle_cleanup_call(args, engine):
     if args.verbosity > 2:
         print "handling cleanup"
 
-    if False:
-        pass
+    # Get the targets for cleanup
+    targets = ''
+    if args.t or args.all:
+        if args.verbosity > 2:
+            print "adding 't' to targets"
+        targets += 't'
+    if args.u or args.all:
+        if args.verbosity > 2:
+            print "adding 'u' to targets"
+        targets += 'u'
+    if args.r or args.all:
+        if args.verbosity > 2:
+            print "adding 'r' to targets"
+        targets += 'r'
+
+    if targets:
+        engine.cleanup_branches(targets=targets)
     else:
-        raise RuntimeError("Unimplemented command for cleanups: {}".format(args.action))
+        print "No targets specified for cleanup."
 
 
 def run():
@@ -826,7 +874,7 @@ def run():
     release = subparsers.add_parser('release',
         help="do release-related things",)
     cleanup = subparsers.add_parser('cleanup',
-        help="do repository-cleanup related things",)
+        help="do repository-cleanup related things.",)
 
     #
     # Features
@@ -905,7 +953,14 @@ def run():
     #
     # Cleanup
     #
-    cleanup_subs = cleanup.add_subparsers()
+    cleanup.add_argument('-u', action='store_true',
+        help='do cleanup features.', default=False)
+    cleanup.add_argument('-r', action='store_true',
+        help='do cleanup releases.', default=False)
+    cleanup.add_argument('-t', action='store_true',
+        help='do cleanup hotfixes.', default=False)
+    cleanup.add_argument('-a', '--all', action='store_true', default=False,
+        help='Shorthand for using the flag -urt')
 
     args = parser.parse_args()
     if args.verbosity > 2:
