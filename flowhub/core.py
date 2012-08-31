@@ -4,6 +4,9 @@ import argparse
 from engine import Engine
 
 
+__version__ = "0.3.1"
+
+
 def handle_init_call(args, engine):
     if args.verbosity > 2:
         print "handling init"
@@ -120,6 +123,8 @@ def run():
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
     parser.add_argument('--no-gh', action='store_true', default=False,
         help='do not talk to GitHub',)
+    parser.add_argument('--version', action='version',
+        version=('flowhub v{}'.format(__version__)))
 
     subparsers = parser.add_subparsers(dest="subparser")
     init = subparsers.add_parser('init',
