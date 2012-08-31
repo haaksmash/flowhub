@@ -198,6 +198,7 @@ class Engine(object):
 
     @with_summary
     def accept_feature(self, name=None, summary=None):
+        return_branch = self._repo.head.reference
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
@@ -206,15 +207,13 @@ class Engine(object):
                 raise RuntimeError("Please provide a feature name, or switch to the feature branch you want to mark as accepted.")
 
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
+            return_branch = self.develop
 
         self.canon.fetch()
         summary += [
             "Latest objects fetched from {}".format(self.canon.name),
         ]
         self.develop.checkout()
-        summary += [
-            "Checked out branch {}".format(self.develop.name),
-        ]
         self._repo.git.merge(
             "{}/{}".format(self.canon.name, self.develop.name),
         )
@@ -241,8 +240,14 @@ class Engine(object):
             "Deleted {} from {}".format(branch_name, self.origin.name),
         ]
 
+        return_branch.checkout()
+        summary += [
+            "Checked out branch {}".format(return_branch.name),
+        ]
+
     @with_summary
     def abandon_feature(self, name=None, summary=None):
+        return_branch = self._repo.head.reference
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
@@ -251,6 +256,7 @@ class Engine(object):
                 raise RuntimeError("Please provide a feature name, or switch to the feature branch you want to abandon.")
 
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
+            return_branch = self.develop
 
         if self.__debug > 0:
             print "Abandoning feature branch..."
@@ -259,8 +265,7 @@ class Engine(object):
         # branch -D feature_prefix+name
         # push --delete origin feature_prefix+name
 
-        head = self.develop
-        head.checkout()
+        return_branch.checkout()
 
         branch_name = "{}{}".format(
             self._cr.get('flowhub "prefix"', 'feature'),
@@ -286,7 +291,7 @@ class Engine(object):
         )
         summary += [
             "Checked out branch {}".format(
-                self._cr.get('flowhub "structure"', 'develop'),
+                return_branch.name,
             ),
         ]
 
@@ -439,6 +444,7 @@ class Engine(object):
         # push --tags canon
         # delete release branch
         # git push origin --delete name
+        return_branch = self._repo.head.reference
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
@@ -447,6 +453,7 @@ class Engine(object):
                 raise RuntimeError("please provide a release name, or switch to the release branch you want to publish.")
 
             name = name.replace(self._cr.get('flowhub "prefix"', 'release'), '')
+            return_branch = self.develop
 
         release_name = "{}{}".format(
             self._cr.get('flowhub "prefix"', 'release'),
@@ -483,9 +490,6 @@ class Engine(object):
 
         # merge into develop
         self.develop.checkout()
-        summary += [
-            "Checked out branch {}".format(self.develop.name),
-        ]
         self._repo.git.merge(
             release_name,
             no_ff=True,
@@ -510,6 +514,11 @@ class Engine(object):
             summary += [
                 "Branch {} {}".format(release_name, 'removed' if delete_release_branch else "still available"),
             ]
+
+        return_branch.checkout()
+        summary += [
+            "Checked out branch {}".format(return_branch.name),
+        ]
 
     def cleanup_branches(self):
         # hotfixes: remove from origin, local if match not found on canon
