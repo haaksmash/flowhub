@@ -609,12 +609,21 @@ class Engine(object):
 
     @with_summary
     def cleanup_branches(self, summary=None, targets=""):
+        current_branch = self._repo.head.reference
         for branch in self._repo.branches:
             if ('u' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'feature')))\
                 or ('r' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'release')))\
                 or ('t' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'hotfix'))):
                 # Feature branches get removed if they're fully merged in to something else.
                 # NOTE: this will delete branch references that have no commits in them.
+                if branch == current_branch:
+                    print (
+                        "Currently checked out branch would be cleaned up; skipping."
+                        "If you want this branch to be cleaned up, switch to a different branch"
+                        "and re-run this command."
+                    )
+                    continue
+
                 try:
                     remote_branch = branch.tracking_branch()
                     self._repo.delete_head(branch.name)
