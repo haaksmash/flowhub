@@ -549,7 +549,7 @@ class Engine(object):
         self._repo.create_tag(
             path=name,
             ref=self.master,
-            message=tag_message
+            message=tag_message,
         )
         summary += [
             "New tag ({}:{}) created at {}'s tip".format(name, tag_message, self.master.name),
@@ -599,7 +599,7 @@ class Engine(object):
         self._repo.git.push(
                 self._cr.get('flowhub "structure"', 'origin'),
                 branch_name,
-                set_upstream=True
+                set_upstream=True,
         )
 
         base = self.release.name
@@ -624,7 +624,8 @@ class Engine(object):
             "\n\turl: {}".format(
                 head,
                 base,
-                pr.issue_url)
+                pr.issue_url,
+            )
         ]
 
     @with_summary
@@ -714,7 +715,7 @@ class Engine(object):
         summary += [
             "New branch {} created, from branch {}".format(
                 branch_name,
-                self.master.name
+                self.master.name,
             ),
         ]
 
@@ -722,7 +723,7 @@ class Engine(object):
             print "Adding a tracking branch to your GitHub repo"
         self.canon.push(
             "{0}:{0}".format(branch_name),
-            set_upstream=True
+            set_upstream=True,
         )
         summary += [
             "Pushed {} to {}".format(branch_name, self.canon.name),
@@ -786,7 +787,7 @@ class Engine(object):
         self._repo.create_tag(
             path=name,
             ref=self.master,
-            message=tag_message
+            message=tag_message,
         )
         summary += [
             "New tag ({}:{}) created at {}'s tip".format(name, tag_message, self.master.name),
@@ -840,7 +841,7 @@ class Engine(object):
         self._repo.git.push(
                 self._cr.get('flowhub "structure"', 'origin'),
                 branch_name,
-                set_upstream=True
+                set_upstream=True,
         )
 
         if self.canon == self.origin:
@@ -868,5 +869,6 @@ class Engine(object):
             "\n\turl: {}".format(
                 head,
                 base,
-                pr.issue_url)
+                pr.issue_url,
+            )
         ]
