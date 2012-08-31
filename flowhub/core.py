@@ -839,16 +839,22 @@ def handle_cleanup_call(args, engine):
         print "handling cleanup"
 
     # Get the targets for cleanup
-    target = ''
+    targets = ''
     if args.t or args.all:
-        target += 't'
+        if args.verbosity > 1:
+            print "adding 't' to targets"
+        targets += 't'
     if args.u or args.all:
-        target += 'a'
+        if args.verbosity > 1:
+            print "adding 'u' to targets"
+        targets += 'u'
     if args.r or args.all:
-        target += 'r'
+        if args.verbosity > 1:
+            print "adding 'r' to targets"
+        targets += 'r'
 
-    if target:
-        engine.cleanup_branches()
+    if targets:
+        engine.cleanup_branches(targets=targets)
     else:
         print "No targets specified for cleanup."
 
