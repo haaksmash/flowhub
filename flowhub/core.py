@@ -801,7 +801,7 @@ class Engine(object):
 
     @with_summary
     def contribute_hotfix(self, summary=None):
-        if not (self.release and self.release.commit in self._repo.head.reference.object.iter_parents()):
+        if not (self.hotfix and self.hotfix.commit in self._repo.head.reference.object.iter_parents()):
             # Don't allow random branches to be contributed.
             print "You are attempting to contribute a branch that is not a descendant of this hotfix."
             print "Unfortunately, this isn't allowed."
@@ -816,11 +816,11 @@ class Engine(object):
 
         if self.canon == self.origin:
             gh_parent = self._gh_repo
-            base = self.release.name
+            base = self.hotfix.name
             head = branch_name
         else:
             gh_parent = self._gh_repo.parent
-            base = self.release.name
+            base = self.hotfix.name
             head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
         prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head \
