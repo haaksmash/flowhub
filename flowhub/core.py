@@ -351,7 +351,7 @@ class Engine(object):
             )
         else:
             issue_number = raw_input("Issue number: ")
-            issue = self._gh_repo.parent.get_issue(int(issue_number))
+            issue = gh_parent.get_issue(int(issue_number))
             pr = gh_parent.create_pull(
                 issue=issue,
                 base=base,
