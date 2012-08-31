@@ -403,6 +403,9 @@ class Engine(object):
             "{0}:{0}".format(branch_name),
             set_upstream=True
         )
+        summary += [
+            "Pushed {} to {}".format(branch_name, self.canon.name),
+        ]
 
         branch = [x for x in self._repo.branches if x.name == branch_name][0]
 
