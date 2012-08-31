@@ -7,6 +7,7 @@ import git
 from github import Github
 import warnings
 
+from decorators import with_summary
 
 class Engine(object):
 
@@ -125,7 +126,8 @@ class Engine(object):
         repo = git.Repo(repo_dir)
         return repo
 
-    def create_feature(self, name=None, create_tracking_branch=True):
+    @with_summary
+    def create_feature(self, name=None, create_tracking_branch=True, summary=None):
         if name is None:
             raise RuntimeError("Please provide a feature name.")
 
@@ -143,6 +145,12 @@ class Engine(object):
             branch_name,
             commit=self.develop,  # Requires a develop branch.
         )
+        summary += [
+            "New branch {} created, from branch {}".format(
+                branch_name,
+                self._cr.get('flowhub "structure"', 'develop')
+            )
+        ]
 
         if create_tracking_branch:
             if self.__debug > 0:
@@ -152,20 +160,20 @@ class Engine(object):
                 branch_name,
                 set_upstream=True
             )
+            summary += [
+                "Created a remote tracking branch on {} for {}".format(
+                    self.origin.name,
+                    branch_name,
+                ),
+            ]
 
         branch = [x for x in self._repo.branches if x.name == branch_name][0]
 
         # Checkout the branch.
         branch.checkout()
-
-        print '\n\t'.join((
-            "Summary of actions: ",
-            "New branch {} created, from branch {}".format(
-                branch_name,
-                self._cr.get('flowhub "structure"', 'develop')
-            ),
+        summary += [
             "Checked out branch {}".format(branch_name),
-        ))
+        ]
 
     def work_feature(self, name=None):
         """Simply checks out the feature branch for the named feature."""
@@ -183,11 +191,13 @@ class Engine(object):
         if branches:
             branch = branches[0]
             branch.checkout()
+            print "Switched to branch '{}'".format(branch.name)
 
         else:
-            raise RuntimeError("no feature with name {}".format(name))
+            raise RuntimeError("No feature with name {}".format(name))
 
-    def accept_feature(self, name=None):
+    @with_summary
+    def accept_feature(self, name=None, summary=None):
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
@@ -198,11 +208,20 @@ class Engine(object):
             name = name.replace(self._cr.get('flowhub "prefix"', 'feature'), '')
 
         self.canon.fetch()
-
+        summary += [
+            "Latest objects fetched from {}".format(self.canon.name),
+        ]
         self.develop.checkout()
+        summary += [
+            "Checked out branch {}".format(self.develop.name),
+        ]
         self._repo.git.merge(
             "{}/{}".format(self.canon.name, self.develop.name),
         )
+        summary += [
+            "Updated {}".format(self.develop.name),
+        ]
+
         branch_name = "{}{}".format(
             self._cr.get('flowhub "prefix"', 'feature'),
             name,
@@ -211,21 +230,19 @@ class Engine(object):
         self._repo.delete_head(
             branch_name,
         )
+        summary += [
+            "Deleted {} from local repository".format(branch_name),
+        ]
         self.origin.push(
             branch_name,
             delete=True,
         )
-
-        print "\n\t".join((
-            "Summary of Actions:",
-            "Latest objects fetched from {}".format(self.canon.name),
-            "Updated {}".format(self.develop.name),
-            "Deleted {} from local repository".format(branch_name),
+        summary += [
             "Deleted {} from {}".format(branch_name, self.origin.name),
-            "Checked out branch {}".format(self.develop.name),
-        ))
+        ]
 
-    def abandon_feature(self, name=None):
+    @with_summary
+    def abandon_feature(self, name=None, summary=None):
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
@@ -254,25 +271,27 @@ class Engine(object):
             branch_name,
             force=True,
         )
+        summary += [
+            "Deleted branch {} locally and from remote {}".format(
+                branch_name,
+                self._cr.get('flowhub "structure"', 'origin')
+            ),
+        ]
+
         self._repo.git.push(
             self._cr.get('flowhub "structure"', 'origin'),
             branch_name,
             delete=True,
             force=True,
         )
-
-        print "\n\t".join((
-            "Summary of actions: ",
-            "Deleted branch {} locally and from remote {}".format(
-                branch_name,
-                self._cr.get('flowhub "structure"', 'origin')
-            ),
+        summary += [
             "Checked out branch {}".format(
                 self._cr.get('flowhub "structure"', 'develop'),
             ),
-        ))
+        ]
 
-    def publish_feature(self, name):
+    @with_summary
+    def publish_feature(self, name, summary=None):
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
@@ -291,7 +310,11 @@ class Engine(object):
                 branch_name,
                 set_upstream=True
         )
+        summary += [
+            "Updated {}/{}".format(self.origin.name, branch_name)
+        ]
 
+        # if this isn't a fork, we have slightly different sha's.
         if self.canon == self.origin:
             gh_parent = self._gh_repo
             base = self.develop.name
@@ -304,11 +327,14 @@ class Engine(object):
         prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
-            print "new commits added to existing pull-request."
-            print "url: {}".format(prs[0].issue_url)
+            summary += [
+                "New commits added to existing pull-request"
+                "\n\turl: {}".format(prs[0].issue_url)
+            ]
             return
 
-        print "setting up new pull-request"
+        if self.__debug > 1:
+            print "setting up new pull-request"
         is_issue = raw_input("Is this feature answering an issue? [y/N] ") == 'y'
 
         if not is_issue:
@@ -331,9 +357,16 @@ class Engine(object):
                 base=base,
                 head=head,
             )
-        print "url: {}".format(pr.issue_url)
+        summary += [
+            "New pull request created: {} into {}"
+            "\n\turl: {}".format(
+                head,
+                base,
+                pr.issue_url)
+        ]
 
-    def start_release(self, name):
+    @with_summary
+    def start_release(self, name, summary=None):
         # checkout develop
         # if already release branch, abort.
         # checkout -b relase_prefix+branch_name
@@ -344,7 +377,7 @@ class Engine(object):
             raise RuntimeError("You already have a release in the works - please finish that one.")
 
         if self.__debug > 0:
-            print "creating new release branch..."
+            print "Creating new release branch..."
 
         # checkout develop
         # checkout -b release/name
@@ -357,6 +390,12 @@ class Engine(object):
             branch_name,
             commit=self.develop,
         )
+        summary += [
+            "New branch {} created, from branch {}".format(
+                branch_name,
+                self._cr.get('flowhub "structure"', 'develop')
+            ),
+        ]
 
         if self.__debug > 0:
             print "Adding a tracking branch to your GitHub repo"
@@ -369,28 +408,23 @@ class Engine(object):
 
         # Checkout the branch.
         branch.checkout()
+        summary += [
+            "Checked out branch {}"
+            "\n\nBump the release version now!".format(branch_name),
+        ]
 
-        print '\n\t'.join((
-            "Summary of actions: ",
-            "New branch {} created, from branch {}".format(
-                branch_name,
-                self._cr.get('flowhub "structure"', 'develop')
-            ),
-            "Checked out branch {}".format(branch_name),
-        ))
-
-        print "Bump the release version now!"
-
-    def stage_release(self):
-        print '\n\t'.join((
-            "Summary of actions: ",
+    @with_summary
+    def stage_release(self, summary=None):
+        summary += [
             "Release branch sent off to stage",
+        ]
+        summary += [
             "Release branch checked out and refreshed on stage.",
-        ))
+            "\n\nLOL just kidding, this doesn't do anything."
+        ]
 
-        print "LOL just kidding, this doesn't do anything."
-
-    def publish_release(self, name=None, delete_release_branch=True):
+    @with_summary
+    def publish_release(self, name=None, delete_release_branch=True, summary=None):
         # fetch canon
         # checkout master
         # merge canon master
@@ -416,17 +450,10 @@ class Engine(object):
             name,
         )
 
-        self._repo.git.fetch(
-            self.canon.name,
-            self.master.name,
-            quiet=True,
-        )
-
-        self._repo.git.fetch(
-            self.canon.name,
-            self.develop.name,
-            quiet=True,
-        )
+        self.canon.fetch()
+        summary += [
+            "Latest objects fetched from {}".format(self.canon.name),
+        ]
 
         # TODO: ensure equality of remote and local master/develop branches
         # TODO: handle merge conflicts.
@@ -436,6 +463,9 @@ class Engine(object):
             release_name,
             no_ff=True,
         )
+        summary += [
+            "Branch {} merged into {}".format(release_name, self.master.name),
+        ]
 
         # and tag
         tag_message = raw_input("Message for this tag ({}): ".format(name)),
@@ -444,17 +474,29 @@ class Engine(object):
             ref=self.master,
             message=tag_message
         )
+        summary += [
+            "New tag ({}:{}) created at {}'s tip".format(name, tag_message, self.master.name),
+        ]
 
         # merge into develop
         self.develop.checkout()
+        summary += [
+            "Checked out branch {}".format(self.develop.name),
+        ]
         self._repo.git.merge(
             release_name,
             no_ff=True,
         )
+        summary += [
+            "Branch {} merged into {}".format(release_name, self.develop.name),
+        ]
 
         # push to canon
         self.canon.push()
         self.canon.push(tags=True)
+        summary += [
+            "{}, {}, and tags have been pushed to {}".format(self.master.name, self.develop.name, self.canon.name),
+        ]
 
         if delete_release_branch:
             self._repo.delete_head(release_name)
@@ -462,17 +504,9 @@ class Engine(object):
                 release_name,
                 delete=True,
             )
-
-        print "\n\t".join((
-                "Summary of actions:",
-                "Latest objects fetched from {}".format(self.canon.name),
-                "Branch {} merged into {}".format(release_name, self.master.name),
-                "New tag ({}:{}) created at {}'s tip".format(name, tag_message, self.master.name),
-                "Branch {} merged into {}".format(release_name, self.develop.name),
+            summary += [
                 "Branch {} {}".format(release_name, 'removed' if delete_release_branch else "still available"),
-                "{}, {}, and tags have been pushed to {}".format(self.master.name, self.develop.name, self.canon.name),
-                "Checked out branch {}".format(self.develop.name),
-            ))
+            ]
 
     def cleanup_branches(self):
         # hotfixes: remove from origin, local if match not found on canon
