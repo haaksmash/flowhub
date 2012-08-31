@@ -4,9 +4,11 @@ from distutils.core import setup
 from setuptools import find_packages
 import os
 
+# ORANGE
+
 setup(
     name="flowhub",
-    version='0.3.0',
+    version='0.3.1',
     description="Git-flow adapted for GitHub",
     long_description=open("README.rst").read(),
     author="Haak Saxberg",
