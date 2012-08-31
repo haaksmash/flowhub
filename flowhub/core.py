@@ -569,7 +569,7 @@ class Engine(object):
     def contribute_release(self, summary=None):
         if not (self.release and self.release.commit in self._repo.head.reference.object.iter_parents()):
             # Don't allow random branches to be contributed.
-            print "You are attempting to contribute a branch that is not a descendent of this release."
+            print "You are attempting to contribute a branch that is not a descendant of this release."
             print "Unfortunately, this isn't allowed."
             return
 
@@ -798,7 +798,7 @@ class Engine(object):
     def contribute_hotfix(self, summary=None):
         if not (self.release and self.release.commit in self._repo.head.reference.object.iter_parents()):
             # Don't allow random branches to be contributed.
-            print "You are attempting to contribute a branch that is not a descendent of this hotfix."
+            print "You are attempting to contribute a branch that is not a descendant of this hotfix."
             print "Unfortunately, this isn't allowed."
             return
 
