@@ -626,6 +626,7 @@ def handle_feature_call(args, engine):
             engine.publish_feature(name=args.name)
         except AssertionError:
             # This is janky as shit, but running twice fixes it.
+            # see #14
             engine.publish_feature(name=args.name)
     elif args.action == 'abandon':
         engine.abandon_feature(
@@ -633,9 +634,15 @@ def handle_feature_call(args, engine):
         )
 
     elif args.action == 'accepted':
-        engine.accept_feature(
-            name=args.name,
-        )
+        try:
+            engine.accept_feature(
+                name=args.name,
+            )
+        except AssertionError:
+            # see #14
+            engine.accept_feature(
+                name=args.name,
+            )
 
     else:
         raise RuntimeError("Unimplemented command for features: {}".format(args.action))
