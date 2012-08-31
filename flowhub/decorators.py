@@ -2,8 +2,8 @@ import functools
 
 
 def with_summary(f):
-    """Prints a nice summary, assuming a function returns a list of
-    summary strings."""
+    """Prints a nice summary, assuming the function accepts a
+    'summary' kwarg and appends to it."""
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         summary = []
