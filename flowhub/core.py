@@ -591,7 +591,7 @@ class Engine(object):
         ]
 
     @with_summary
-    def apply_hotfix(self, name, summary=None):
+    def apply_hotfix(self, name, summary=None, delete_hotfix_branch=True):
         # fetch canon
         # checkout master
         # merge --no-ff hotfix
@@ -600,6 +600,7 @@ class Engine(object):
         # merge --no-ff hotfix
         # push --tags canon
         # delete hotfix branches
+        return_branch = self._repo.head.reference
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
@@ -608,6 +609,7 @@ class Engine(object):
                 raise RuntimeError("please provide a hotfix name, or switch to the hotfix branch you want to publish.")
 
             name = name.replace(self._cr.get('flowhub "prefix"', 'hotfix'), '')
+            return_branch = self.develop
 
         hotfix_name = "{}{}".format(
             self._cr.get('flowhub "prefix"', 'hotfix'),
@@ -644,15 +646,12 @@ class Engine(object):
 
         # merge into develop
         self.develop.checkout()
-        summary += [
-            "Checked out branch {}".format(self.develop.name),
-        ]
         self._repo.git.merge(
             hotfix_name,
             no_ff=True,
         )
         summary += [
-            "Branch {} merged into {}".format(release_name, self.develop.name),
+            "Branch {} merged into {}".format(hotfix_name, self.develop.name),
         ]
 
         # push to canon
@@ -662,15 +661,20 @@ class Engine(object):
             "{}, {}, and tags have been pushed to {}".format(self.master.name, self.develop.name, self.canon.name),
         ]
 
-        if delete_release_branch:
-            self._repo.delete_head(release_name)
+        if delete_hotfix_branch:
+            self._repo.delete_head(hotfix_name)
             self.canon.push(
-                release_name,
+                hotfix_name,
                 delete=True,
             )
             summary += [
-                "Branch {} {}".format(release_name, 'removed' if delete_release_branch else "still available"),
+                "Branch {} {}".format(hotfix_name, 'removed' if delete_hotfix_branch else "still available"),
             ]
+
+        return_branch.checkout()
+        summary += [
+            "Checked out branch {}".format(return_branch.name),
+        ]
 
 
 def handle_init_call(args, engine):
