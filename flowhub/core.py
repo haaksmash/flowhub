@@ -145,13 +145,13 @@ class Engine(object):
             branch_name,
             commit=self.develop,  # Requires a develop branch.
         )
-
         summary += [
             "New branch {} created, from branch {}".format(
                 branch_name,
                 self._cr.get('flowhub "structure"', 'develop')
             )
         ]
+
         if create_tracking_branch:
             if self.__debug > 0:
                 print "Adding a tracking branch to your GitHub repo"
@@ -160,6 +160,12 @@ class Engine(object):
                 branch_name,
                 set_upstream=True
             )
+            summary += [
+                "Created a remote tracking branch on {} for {}".format(
+                    self.origin.name,
+                    branch_name,
+                ),
+            ]
 
         branch = [x for x in self._repo.branches if x.name == branch_name][0]
 
@@ -371,7 +377,7 @@ class Engine(object):
             raise RuntimeError("You already have a release in the works - please finish that one.")
 
         if self.__debug > 0:
-            print "creating new release branch..."
+            print "Creating new release branch..."
 
         # checkout develop
         # checkout -b release/name
