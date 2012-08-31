@@ -560,11 +560,11 @@ class Engine(object):
         ]
 
     @with_summary
-    def cleanup_branches(self, summary=None):
+    def cleanup_branches(self, summary=None, targets=""):
         # hotfixes: remove from origin, local if match not found on canon
         # releases: remove from origin, local if match not found on canon
         for branch in self._repo.branches:
-            if branch.name.startswith(self._cr.get('flowhub "prefix"', 'feature')):
+            if 'u' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'feature')):
                 # Feature branches get removed if they're fully merged in to something else.
                 # NOTE: this will delete branch references that have no commits in them.
                 try:
@@ -836,7 +836,19 @@ def handle_cleanup_call(args, engine):
     if args.verbosity > 2:
         print "handling cleanup"
 
-    engine.cleanup_branches()
+    # Get the targets for cleanup
+    target = ''
+    if args.t or args.all:
+        target += 't'
+    if args.u or args.all:
+        target += 'a'
+    if args.r or args.all:
+        target += 'r'
+
+    if target:
+        engine.cleanup_branches()
+    else:
+        print "No targets specified for cleanup."
 
 
 def run():
@@ -855,7 +867,7 @@ def run():
     release = subparsers.add_parser('release',
         help="do release-related things",)
     cleanup = subparsers.add_parser('cleanup',
-        help="do repository-cleanup related things",)
+        help="do repository-cleanup related things.",)
 
     #
     # Features
@@ -934,6 +946,15 @@ def run():
     #
     # Cleanup
     #
+    cleanup.add_argument('-u', action='store_true',
+        help='do cleanup features.', default=False)
+    cleanup.add_argument('-r', action='store_true',
+        help='do cleanup releases.', default=False)
+    cleanup.add_argument('-t', action='store_true',
+        help='do cleanup hotfixes.', default=False)
+    cleanup.add_argument('-a', '--all', action='store_true', default=False,
+        help='Shorthand for using the flag -urt')
+
     args = parser.parse_args()
     if args.verbosity > 2:
         print "Args: ", args
