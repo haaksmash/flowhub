@@ -564,7 +564,9 @@ class Engine(object):
         # hotfixes: remove from origin, local if match not found on canon
         # releases: remove from origin, local if match not found on canon
         for branch in self._repo.branches:
-            if 'u' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'feature')):
+            if ('u' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'feature')))\
+                or ('r' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'release')))\
+                or ('t' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'hotfix'))):
                 # Feature branches get removed if they're fully merged in to something else.
                 # NOTE: this will delete branch references that have no commits in them.
                 try:
