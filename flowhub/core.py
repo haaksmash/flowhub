@@ -878,6 +878,8 @@ def handle_feature_call(args, engine):
     if args.verbosity > 2:
         print "handling feature"
     if args.action == 'start':
+        if args.issue_number:
+            args.name = "{}-{}".format(args.issue_number, args.name)
         engine.create_feature(
             name=args.name,
             create_tracking_branch=(not args.no_track),
@@ -1004,6 +1006,9 @@ def run():
     fstart.add_argument('name', help="name of the feature")
     fstart.add_argument('--no-track', default=False, action='store_true',
         help="do *not* set up a tracking branch on origin.")
+    fstart.add_argument('-i', '--issue-number', type=int,
+        action='store', default=0,
+        help="prepend an issue number to the feature name")
 
     fwork = feature_subs.add_parser('work',
         help="switch to a different feature (by name)")
