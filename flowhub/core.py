@@ -561,8 +561,6 @@ class Engine(object):
 
     @with_summary
     def cleanup_branches(self, summary=None, targets=""):
-        # hotfixes: remove from origin, local if match not found on canon
-        # releases: remove from origin, local if match not found on canon
         for branch in self._repo.branches:
             if ('u' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'feature')))\
                 or ('r' in targets and branch.name.startswith(self._cr.get('flowhub "prefix"', 'release')))\
