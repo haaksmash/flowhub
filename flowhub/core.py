@@ -7,6 +7,7 @@ import git
 from github import Github
 import warnings
 
+from decorators import with_summary
 
 class Engine(object):
 
@@ -125,6 +126,7 @@ class Engine(object):
         repo = git.Repo(repo_dir)
         return repo
 
+    @with_summary
     def create_feature(self, name=None, create_tracking_branch=True):
         if name is None:
             raise RuntimeError("Please provide a feature name.")
@@ -144,6 +146,12 @@ class Engine(object):
             commit=self.develop,  # Requires a develop branch.
         )
 
+        summary += [
+            "New branch {} created, from branch {}".format(
+                branch_name,
+                self._cr.get('flowhub "structure"', 'develop')
+            )
+        ]
         if create_tracking_branch:
             if self.__debug > 0:
                 print "Adding a tracking branch to your GitHub repo"
@@ -157,15 +165,9 @@ class Engine(object):
 
         # Checkout the branch.
         branch.checkout()
-
-        print '\n\t'.join((
-            "Summary of actions: ",
-            "New branch {} created, from branch {}".format(
-                branch_name,
-                self._cr.get('flowhub "structure"', 'develop')
-            ),
+        summary += [
             "Checked out branch {}".format(branch_name),
-        ))
+        ]
 
     def work_feature(self, name=None):
         """Simply checks out the feature branch for the named feature."""
@@ -187,7 +189,10 @@ class Engine(object):
         else:
             raise RuntimeError("no feature with name {}".format(name))
 
+    @with_summary
     def accept_feature(self, name=None):
+        summary = []
+
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
@@ -216,14 +221,13 @@ class Engine(object):
             delete=True,
         )
 
-        print "\n\t".join((
-            "Summary of Actions:",
+        return [
             "Latest objects fetched from {}".format(self.canon.name),
             "Updated {}".format(self.develop.name),
             "Deleted {} from local repository".format(branch_name),
             "Deleted {} from {}".format(branch_name, self.origin.name),
             "Checked out branch {}".format(self.develop.name),
-        ))
+        ]
 
     def abandon_feature(self, name=None):
         if name is None:
