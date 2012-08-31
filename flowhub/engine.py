@@ -114,6 +114,16 @@ class Engine(object):
         return self._repo.remote(self._cr.get('flowhub "structure"', 'canon'))
 
     @property
+    def gh_canon(self):
+        # if this isn't a fork, we have slightly different sha's.
+        if self.canon == self.origin:
+            gh_parent = self._gh_repo
+        else:
+            gh_parent = self._gh_repo.parent
+
+        return gh_parent
+
+    @property
     def release(self):
         releases = [x for x in self._repo.branches if x.name.startswith(
                 self._cr.get('flowhub "prefix"', 'release'),
@@ -148,7 +158,10 @@ class Engine(object):
         repo = git.Repo(repo_dir)
         return repo
 
-    def _create_pull_request(self, base, head, repo):
+    def _create_pull_request(self, base, head, repo=None):
+        if repo is None:
+            repo = self.gh_canon
+
         if self.__debug > 1:
             print "setting up new pull-request"
 
@@ -382,17 +395,13 @@ class Engine(object):
             "Updated {}/{}".format(self.origin.name, branch_name)
         ]
 
-        # if this isn't a fork, we have slightly different sha's.
-        if self.canon == self.origin:
-            gh_parent = self._gh_repo
-            base = self.develop.name
+        base = self.release.name
+        if self.gh_canon == self.origin:
             head = branch_name
         else:
-            gh_parent = self._gh_repo.parent
-            base = self.develop.name
             head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
-        prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head \
+        prs = [x for x in self.gh_canon.get_pulls('open') if x.head.label == head \
                     or x.head.label == "{}:{}".format(self._gh.get_user().login, head)]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
@@ -402,7 +411,7 @@ class Engine(object):
             ]
             return
 
-        pr = self._create_pull_request(base, head, gh_parent)
+        pr = self._create_pull_request(base, head)
         summary += [
             "New pull request created: {} into {}"
             "\n\turl: {}".format(
@@ -592,16 +601,14 @@ class Engine(object):
                 branch_name,
                 set_upstream=True
         )
-        if self.canon == self.origin:
-            gh_parent = self._gh_repo
-            base = self.release.name
+
+        base = self.release.name
+        if self.gh_canon == self.origin:
             head = branch_name
         else:
-            gh_parent = self._gh_repo.parent
-            base = self.release.name
             head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
-        prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head \
+        prs = [x for x in self.gh_canon.get_pulls('open') if x.head.label == head \
                     or x.head.label == "{}:{}".format(self._gh.get_user().login, head)]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
@@ -611,7 +618,7 @@ class Engine(object):
             ]
             return
 
-        pr = self._create_pull_request(base, head, gh_parent)
+        pr = self._create_pull_request(base, head)
         summary += [
             "New pull request created: {} into {}"
             "\n\turl: {}".format(
