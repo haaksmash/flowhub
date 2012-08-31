@@ -351,7 +351,7 @@ class Engine(object):
             )
         else:
             issue_number = raw_input("Issue number: ")
-            issue = self._gh_repo.parent.get_issue(int(issue_number))
+            issue = gh_parent.get_issue(int(issue_number))
             pr = gh_parent.create_pull(
                 issue=issue,
                 base=base,
@@ -403,6 +403,9 @@ class Engine(object):
             "{0}:{0}".format(branch_name),
             set_upstream=True
         )
+        summary += [
+            "Pushed {} to {}".format(branch_name, self.canon.name),
+        ]
 
         branch = [x for x in self._repo.branches if x.name == branch_name][0]
 
@@ -514,11 +517,69 @@ class Engine(object):
         # features: if pull request found and accepted, delete from local and origin
         pass
 
-    def create_hotfix(self):
+    @with_summary
+    def start_hotfix(self, name, summary=None):
         # Checkout master
         # if already hotfix branch, abort.
         # checkout -b hotfix_prefix+branch_name
-        pass
+        if name is None:
+            raise RuntimeError("Please provide a release name.")
+
+        if any([x for x in self._repo.branches if x.name.startswith(self._cr.get('flowhub "prefix"', 'hotfix'))]):
+            raise RuntimeError("You already have a hotfix in the works - please finish that one.")
+
+        if self.__debug > 0:
+            print "Creating new hotfix branch..."
+
+        # checkout develop
+        # checkout -b release/name
+
+        branch_name = "{}{}".format(
+            self._cr.get('flowhub "prefix"', 'hotfix'),
+            name
+        )
+        self.canon.fetch()
+        summary += [
+            "Latest objects fetched from {}".format(self.canon.name),
+        ]
+        self.master.checkout()
+        self._repo.git.merge(
+            "{}/{}".format(self.canon.name, self.master.name),
+        )
+        summary += [
+            "Updated {}".format(self.master.name),
+        ]
+
+        self._repo.create_head(
+            branch_name,
+            commit=self.master,
+        )
+        summary += [
+            "New branch {} created, from branch {}".format(
+                branch_name,
+                self.master.name
+            ),
+        ]
+
+        if self.__debug > 0:
+            print "Adding a tracking branch to your GitHub repo"
+        self.canon.push(
+            "{0}:{0}".format(branch_name),
+            set_upstream=True
+        )
+        summary += [
+            "Pushed {} to {}".format(branch_name, self.canon.name),
+        ]
+
+        # simulate self._repo.branches.branch_name, which is what we really want
+        branch = getattr(self._repo.branches, branch_name)
+
+        # Checkout the branch.
+        branch.checkout()
+        summary += [
+            "Checked out branch {}"
+            "\n\nBump the release version now!".format(branch_name),
+        ]
 
     def apply_hotfix(self):
         # pull canon
@@ -572,7 +633,10 @@ def handle_hotfix_call(args, engine):
     if args.verbosity > 2:
         print "handling hotfix"
 
-    if False:
+    if args.action == 'start':
+        engine.start_hotfix(
+            name=args.name,
+        )
         pass
     else:
         raise RuntimeError("Unimplemented command for hotfixes: {}".format(args.action))
@@ -663,8 +727,12 @@ def run():
 
     hstart = hotfix_subs.add_parser('start',
         help="start a new hotfix branch")
-    apply = hotfix_subs.add_parser('apply',
-        help="apply a hotfix branch to master and develop branches")
+    hstart.add_argument('name',
+        help="name (and tag) for the hotfix")
+    hpublish = hotfix_subs.add_parser('publish',
+        help="publish the hotfix to production and trunk")
+    hpublish.add_argument('name', nargs='?',
+        help="name of hotfix to publish. If not given, uses current branch.")
 
     #
     # Releases
@@ -673,13 +741,13 @@ def run():
 
     rstart = release_subs.add_parser('start',
         help="start a new release branch")
-    rstart.add_argument('name', help="name of the release branch.")
+    rstart.add_argument('name', help="name (and tag) of the release branch.")
 
     rstage = release_subs.add_parser('stage',
         help="send a release branch to a staging environment")
 
     rpublish = release_subs.add_parser('publish',
-        help="merge a release branch into master and develop branches")
+        help="publish a release branch to production and trunk")
     rpublish.add_argument('name', nargs='?',
         help="name of release to publish. if not specified, current branch is assumed.")
     rpublish.add_argument('--no-cleanup', action='store_true',
