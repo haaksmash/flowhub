@@ -75,10 +75,10 @@ When her pull-request has been accepted, Suzy can run
 
     Summary of actions:
      - Latest objects fetched from canon
-     - Checked out branch develop
      - Updated develop
      - Deleted feature/accepted-feature from local repository
      - Deleted feature/accepted-feature from origin
+     - Checked out branch develop
 
 from her feature branch, and Flowhub will clean things up a bit. She can also
 specify a feature name, if she's not currently on the accepted feature branch.
@@ -91,9 +91,9 @@ there to comfort her:
     flowhub feature abandon
 
     Summary of actions:
-     - Checked out branch develop
      - Deleted feature/abandoned-feature from local repository
      - Deleted feature/accepted-feature from origin
+     - Checked out branch develop
 
 Which will remove the feature branch she'd been working on.
 
@@ -140,10 +140,10 @@ When the release is polished to Suzy's satisfaction, she publishes the release:
      - Latest objects fetched from canon
      - Branch release/0.3 merged into master
      - New tag (0.3:"Lotta cool stuf here!") created at master's tip
-     - Checked out branch develop
      - Branch release/0.3 merged into develop
      - master, develop, and tags have been pushed to canon
      - Branch release/0.3 removed
+     - Checked out branch develop
 
 
 A few days later, Suzy notices that a frankly embarrassingly bad bug snuck
@@ -173,11 +173,12 @@ When the bug's been killed, Suzy runs
     Message for this tag (0.3.1): Sorry, guys.
 
     Summary of actions:
-     - Merged hotfix/0.3.1 into branch master
+     - Branch hotfix/0.3.1 merged into master
      - New tag (0.3.1:"Sorry, guys.") created at master's tip
      - Branch hotfix/0.3.1 merged into develop
      - master, develop and tags have been pushed to canon
      - Branch hotfix/0.3.1 removed
+     - Checked out branch develop
 
 If Suzy had a release branch at the time, the hotfix would have been merged into
 that instead of her trunk; the bug would have been killed in trunk when the
