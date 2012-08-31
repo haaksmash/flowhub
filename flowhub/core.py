@@ -3,9 +3,11 @@ import argparse
 import commands
 from ConfigParser import NoOptionError, NoSectionError
 import getpass
+import re
+import warnings
+
 import git
 from github import Github
-import warnings
 
 from decorators import with_summary
 
@@ -151,6 +153,19 @@ class Engine(object):
     def _create_pull_request(self, base, head, repo):
         if self.__debug > 1:
             print "setting up new pull-request"
+
+        component_name = head.split('/')[-1]
+        match = re.match('^\d+', component_name)
+        if match:
+            issue_number = match.group()
+            issue = repo.get_issue(int(issue_number))
+            pr = repo.create_pull(
+                issue=issue,
+                base=base,
+                head=head,
+            )
+            return pr
+
         is_issue = raw_input("Is this feature answering an issue? [y/N] ") == 'y'
 
         if not is_issue:
