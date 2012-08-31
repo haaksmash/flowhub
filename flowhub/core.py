@@ -794,6 +794,43 @@ class Engine(object):
             "Checked out branch {}".format(return_branch.name),
         ]
 
+    @with_summary
+    def contribute_hotfix(self, summary=None):
+        if not (self.release and self.release.commit in self._repo.head.reference.object.iter_parents()):
+            # Don't allow random branches to be contributed.
+            print "You are attempting to contribute a branch that is not a descendent of this hotfix."
+            print "Unfortunately, this isn't allowed."
+            return
+
+        branch_name = self._repo.head.reference.name
+        if self.canon == self.origin:
+            gh_parent = self._gh_repo
+            base = self.release.name
+            head = branch_name
+        else:
+            gh_parent = self._gh_repo.parent
+            base = self.release.name
+            head = "{}:{}".format(self._gh.get_user().login, branch_name)
+
+        prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head \
+                    or x.head.label == "{}:{}".format(self._gh.get_user().login, head)]
+        if prs:
+            # If there's already a pull-request, don't bother hitting the gh api.
+            summary += [
+                "New commits added to existing pull-request"
+                "\n\turl: {}".format(prs[0].issue_url)
+            ]
+            return
+
+        pr = self._create_pull_request(base, head, gh_parent)
+        summary += [
+            "New pull request created: {} into {}"
+            "\n\turl: {}".format(
+                head,
+                base,
+                pr.issue_url)
+        ]
+
 
 def handle_init_call(args, engine):
     if args.verbosity > 2:
@@ -854,6 +891,8 @@ def handle_hotfix_call(args, engine):
         engine.publish_hotfix(
             name=args.name,
         )
+    elif args.action == 'contribute':
+        engine.contribute_hotfix()
     else:
         raise RuntimeError("Unimplemented command for hotfixes: {}".format(args.action))
 
@@ -872,8 +911,7 @@ def handle_release_call(args, engine):
             delete_release_branch=(not args.no_cleanup),
         )
     elif args.action == 'contribute':
-        engine.contribute_release(
-        )
+        engine.contribute_release()
     else:
         raise RuntimeError("Unimplemented command for releases: {}".format(args.action))
 
@@ -969,7 +1007,8 @@ def run():
         help="publish the hotfix to production and trunk")
     hpublish.add_argument('name', nargs='?',
         help="name of hotfix to publish. If not given, uses current branch.")
-
+    hcontirbute = hotfix_subs.add_parser('contribute',
+        help='send this branch as a pull request to the current hotfix')
     #
     # Releases
     #
