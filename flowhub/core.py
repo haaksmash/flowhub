@@ -148,6 +148,34 @@ class Engine(object):
         repo = git.Repo(repo_dir)
         return repo
 
+    def _create_pull_request(self, base, head, repo):
+        if self.__debug > 1:
+            print "setting up new pull-request"
+        is_issue = raw_input("Is this feature answering an issue? [y/N] ") == 'y'
+
+        if not is_issue:
+            title = raw_input("Title: ")
+            body = raw_input("Description (remember, you can use GitHub markdown):\n")
+
+            if self.__debug > 1:
+                print (title, body, base, head)
+            pr = repo.create_pull(
+                title=title,
+                body=body,
+                base=base,
+                head=head,
+            )
+        else:
+            issue_number = raw_input("Issue number: ")
+            issue = repo.get_issue(int(issue_number))
+            pr = repo.create_pull(
+                issue=issue,
+                base=base,
+                head=head,
+            )
+
+        return pr
+
     @with_summary
     def create_feature(self, name=None, create_tracking_branch=True, summary=None):
         if name is None:
@@ -361,30 +389,7 @@ class Engine(object):
             ]
             return
 
-        if self.__debug > 1:
-            print "setting up new pull-request"
-        is_issue = raw_input("Is this feature answering an issue? [y/N] ") == 'y'
-
-        if not is_issue:
-            title = raw_input("Title: ")
-            body = raw_input("Description (remember, you can use GitHub markdown):\n")
-
-            if self.__debug > 1:
-                print (title, body, base, head)
-            pr = gh_parent.create_pull(
-                title=title,
-                body=body,
-                base=base,
-                head=head,
-            )
-        else:
-            issue_number = raw_input("Issue number: ")
-            issue = gh_parent.get_issue(int(issue_number))
-            pr = gh_parent.create_pull(
-                issue=issue,
-                base=base,
-                head=head,
-            )
+        pr = self._create_pull_request(base, head, gh_parent)
         summary += [
             "New pull request created: {} into {}"
             "\n\turl: {}".format(
@@ -558,6 +563,43 @@ class Engine(object):
         return_branch.checkout()
         summary += [
             "Checked out branch {}".format(return_branch.name),
+        ]
+
+    @with_summary
+    def contribute_release(self, summary=None):
+        if not (self.release and self.release.commit in self._repo.head.reference.object.iter_parents()):
+            # Don't allow random branches to be contributed.
+            print "You are attempting to contribute a branch that is not a descendent of this release."
+            print "Unfortunately, this isn't allowed."
+            return
+
+        branch_name = self._repo.head.reference.name
+        if self.canon == self.origin:
+            gh_parent = self._gh_repo
+            base = self.release.name
+            head = branch_name
+        else:
+            gh_parent = self._gh_repo.parent
+            base = self.release.name
+            head = "{}:{}".format(self._gh.get_user().login, branch_name)
+
+        prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head \
+                    or x.head.label == "{}:{}".format(self._gh.get_user().login, head)]
+        if prs:
+            # If there's already a pull-request, don't bother hitting the gh api.
+            summary += [
+                "New commits added to existing pull-request"
+                "\n\turl: {}".format(prs[0].issue_url)
+            ]
+            return
+
+        pr = self._create_pull_request(base, head, gh_parent)
+        summary += [
+            "New pull request created: {} into {}"
+            "\n\turl: {}".format(
+                head,
+                base,
+                pr.issue_url)
         ]
 
     @with_summary
@@ -829,6 +871,9 @@ def handle_release_call(args, engine):
             name=args.name,
             delete_release_branch=(not args.no_cleanup),
         )
+    elif args.action == 'contribute':
+        engine.contribute_release(
+        )
     else:
         raise RuntimeError("Unimplemented command for releases: {}".format(args.action))
 
@@ -945,6 +990,7 @@ def run():
         default=False,
         help="do not delete the release branch after a successful publish",
     )
+    rcontribute = release_subs.add_parser('contribute')
 
     rabandon = release_subs.add_parser('abandon',
         help='abort a release branch')
