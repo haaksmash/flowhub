@@ -27,6 +27,23 @@ class Configurator(object):
             for value_name, value in self._confer._sections[section_name].iteritems():
                 section._values[value_name] = value
 
+    def add_section(self, section_name):
+        self._confer.add_section(section_name)
+
+        match = re.match('(?P<section>.+) "(?P<subsection>.+)"$', section_name)
+        if match:
+
+            supersection_n = match.groupdict()['section']
+            section_n = match.groupdict()['subsection']
+
+            supersection = self._sections.setdefault(supersection_n, Section(supersection_n, self, read_only=self._read_only))
+
+            section = supersection._subsections.setdefault(section_n, Section(section_name, self, read_only=self._read_only))
+        else:
+            section = self._sections.setdefault(section_name, Section(section_name, self, read_only=self._read_only))
+
+        return section
+
     def __getattr__(self, attr):
         if attr in self._sections:
             return self._sections[attr]
@@ -36,18 +53,19 @@ class Configurator(object):
 
 class Section(object):
     """Dotted-syntax access to settings"""
-    def __init__(self, name, configurator, read_only=False):
+    def __init__(self, name, configurator, read_only=False, parent=None):
         self._name = name
         self._configurator = configurator
         self._subsections = OrderedDict()
         self._values = OrderedDict()
         self._read_only = read_only
+        self._parent = parent
 
     def add_section(self, section_name):
         if section_name in self._subsections:
             raise KeyError("There's already a section with that name.")
 
-        self._subsections[section_name] = Section(section_name)
+        self._subsections[section_name] = Section(section_name, parent=self)
 
     def set_value(self, value_name, value):
         if self._read_only:
@@ -70,7 +88,7 @@ class Section(object):
             if attr in self._subsections:
                 raise RuntimeError("Can't overwrite subsections this way.")
 
-            elif attr in self._values:
+            elif not attr.startswith('_'):
                 if self._read_only:
                     raise RuntimeError("This is a read-only instance")
 
