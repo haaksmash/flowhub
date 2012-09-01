@@ -1,9 +1,11 @@
+from ConfigParser import DuplicateSectionError
 from collections import OrderedDict
 import re
 
 
 class Configurator(object):
-    """Supports configuration files with subsections."""
+    """Supports configuration files with subsections, given git.config.write
+    instances"""
     def __init__(self, config_object):
         self._confer = config_object
         self._read_only = config_object.read_only
@@ -19,13 +21,20 @@ class Configurator(object):
 
                 supersection = self._sections.setdefault(supersection_n, Section(supersection_n, self, read_only=self._read_only))
 
-                section = supersection._subsections.setdefault(section_n, Section(section_name, self, read_only=self._read_only))
+                try:
+                    section = supersection.add_section(section_n)
+                except AttributeError as e:
+                    print e
+                    section = getattr(supersection, section_n)
 
             else:
                 section = self._sections.setdefault(section_name, Section(section_name, self, read_only=self._read_only))
 
-            for value_name, value in self._confer._sections[section_name].iteritems():
-                section._values[value_name] = value
+            try:
+                for value_name, value in self._confer._sections[section_name].iteritems():
+                    section._values[value_name] = value
+            except AttributeError as e:
+                print e
 
     def add_section(self, section_name):
         self._confer.add_section(section_name)
@@ -52,7 +61,7 @@ class Configurator(object):
 
 
 class Section(object):
-    """Dotted-syntax access to settings"""
+    """Dotted-syntax access to nested settings"""
     def __init__(self, name, configurator, read_only=False, parent=None):
         self._name = name
         self._configurator = configurator
@@ -63,13 +72,17 @@ class Section(object):
 
     def add_section(self, section_name):
         if section_name in self._subsections:
-            raise KeyError("There's already a section with that name.")
+            raise DuplicateSectionError(section_name)
 
-        self._subsections[section_name] = Section(section_name, parent=self)
+        section = Section(section_name, self._configurator, read_only=self._read_only, parent=self)
+        self._subsections[section_name] = section
+
+        return section
 
     def set_value(self, value_name, value):
         if self._read_only:
             raise AttributeError("This is a read-only instance.")
+
         self._values[value_name] = value
         self._configurator._confer.set(self._name, value_name, value)
         self._configurator._confer.write()
@@ -89,9 +102,6 @@ class Section(object):
                 raise RuntimeError("Can't overwrite subsections this way.")
 
             elif not attr.startswith('_'):
-                if self._read_only:
-                    raise RuntimeError("This is a read-only instance")
-
                 self.set_value(attr, value)
 
             else:

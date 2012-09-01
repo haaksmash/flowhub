@@ -77,8 +77,6 @@ class Engine(object):
             self._cw.flowhub.prefix.release = raw_input("Prefix for releast branches [release/]: ") or "release/"
             self._cw.flowhub.prefix.hotfix = raw_input("Prefix for hotfix branches [hotfix/]: ") or "hotfix/"
 
-            self.__write_conf()
-
             print '\n'.join((
                 "You can change these settings just like all git settings, using the\n",
                 "\tgit config\n",
@@ -86,9 +84,6 @@ class Engine(object):
             ))
 
             self._setup_repository_structure()
-
-    def __write_conf(self):
-        self._cw.write()
 
     @property
     def develop(self):
