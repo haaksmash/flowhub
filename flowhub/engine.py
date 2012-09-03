@@ -25,7 +25,7 @@ class Engine(object):
                 print "Authorizing engine..."
             self.do_auth()
             # Refresh the read-only reader.
-            self._cr = self._repo.config_reader()
+            self._cr = Configurator(self._repo.config_reader())
 
             self._gh_repo = self._gh.get_user().get_repo(self._cr.flowhub.structure.name)
 
