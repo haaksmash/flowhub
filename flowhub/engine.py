@@ -692,7 +692,7 @@ class Engine(object):
                     continue
 
     @with_summary
-    def start_hotfix(self, name, summary=None):
+    def start_hotfix(self, name, issues=None, summary=None):
         # Checkout master
         # if already hotfix branch, abort.
         # checkout -b hotfix_prefix+branch_name
@@ -708,9 +708,10 @@ class Engine(object):
         # checkout develop
         # checkout -b release/name
 
-        branch_name = "{}{}".format(
+        branch_name = "{}{}{}".format(
             self._cr.get('flowhub "prefix"', 'hotfix'),
-            name
+            "-".join(['{}'.format(issue) for issue in issues]) if issues is not None else "",
+            name,
         )
         self.canon.fetch()
         summary += [
@@ -829,6 +830,19 @@ class Engine(object):
         summary += [
             "{}, {}, and tags have been pushed to {}".format(self.master.name, trunk.name, self.canon.name),
         ]
+
+        issue_numbers = re.findall('(\d+)-', name)
+        for number in issue_numbers:
+            try:
+                number = int(number)
+            except ValueError:
+                continue
+
+            issue = self._gh_repo.get_issue(number)
+            issue.edit(state='closed')
+            summary += [
+                "Closed issue #{}".format(issue.number)
+            ]
 
         if delete_hotfix_branch:
             self._repo.delete_head(hotfix_name)
