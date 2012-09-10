@@ -20,6 +20,17 @@ class Engine(object):
         self._cr = Configurator(self._repo.config_reader())
 
         self._gh = None
+        if not hasattr(self._cr, 'flowhub'):
+            print (
+                "This repository is not yet Flowhub-enabled. Let's take care of that now."
+            )
+            self.setup_repository_structure()
+            print '\n'.join((
+                "You can change these settings just like all git settings, using the\n",
+                "\tgit config\n",
+                "command."
+            ))
+
         if not skip_auth:
             if self.__debug > 0:
                 print "Authorizing engine..."
@@ -42,25 +53,11 @@ class Engine(object):
                 print "GitHub Engine authorized by token in settings."
         except AttributeError:
             print (
-                "Before you can do that, you need to authorize Flowhub to access "
-                "your GitHub repositories.\n"
-                "Entering your credentials now will grant Flowhub full access to "
-                "your public repositories."
+                "Flowhub needs permission to access your GitHub repositories.\n"
+                "Entering your credentials now will grant Flowhub the access it "
+                "requires."
             )
             self._create_token()
-
-        if hasattr(self._cr, 'flowhub'):
-            return
-
-        print (
-            "This repository is not yet Flowhub-enabled. Let's take care of that now."
-        )
-        self.setup_repository_structure()
-        print '\n'.join((
-            "You can change these settings just like all git settings, using the\n",
-            "\tgit config\n",
-            "command."
-        ))
 
     def _create_token(self):
         self._cw.add_section('flowhub "auth"')
