@@ -710,7 +710,7 @@ class Engine(object):
 
         branch_name = "{}{}{}".format(
             self._cr.get('flowhub "prefix"', 'hotfix'),
-            "-".join(['{}'.format(issue) for issue in issues]) if issues is not None else "",
+            "-".join(['{}'.format(issue) for issue in issues]) + '-' if issues is not None else "",
             name,
         )
         self.canon.fetch()
@@ -841,7 +841,7 @@ class Engine(object):
             issue = self._gh_repo.get_issue(number)
             issue.edit(state='closed')
             summary += [
-                "Closed issue #{}".format(issue.number)
+                "Closed issue #{}".format(issue.number),
             ]
 
         if delete_hotfix_branch:
