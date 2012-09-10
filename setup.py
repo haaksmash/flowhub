@@ -6,7 +6,7 @@ import os
 
 setup(
     name="flowhub",
-    version='0.4.1',
+    version='0.4.2',
     description="Git-flow adapted for GitHub",
     long_description=open("README.rst").read(),
     author="Haak Saxberg",
