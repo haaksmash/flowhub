@@ -26,7 +26,10 @@ def handle_feature_call(args, engine):
         )
 
     elif args.action == 'work':
-        engine.work_feature(name=args.name)
+        if not args.issue:
+            engine.work_feature(name=args.identifier)
+        else:
+            engine.work_feature(issue=args.identifier)
 
     elif args.action == 'publish':
         try:
@@ -155,7 +158,10 @@ def run():
 
     fwork = feature_subs.add_parser('work',
         help="switch to a different feature (by name)")
-    fwork.add_argument('name', help="name of feature to switch to")
+    fwork.add_argument('identifier', help="name of feature to switch to")
+    fwork.add_argument('--issue', '-i',
+        action='store_true', default=False,
+        help='switch to a branch by issue number instead of by name')
 
     fpublish = feature_subs.add_parser('publish',
         help="send the current feature branch to origin and create a pull-request")
