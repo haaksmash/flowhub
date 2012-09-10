@@ -39,7 +39,8 @@ class Engine(object):
             self._gh_repo = self._gh.get_user().get_repo(self._cr.flowhub.structure.name)
 
             if self._gh.rate_limiting[0] < 100:
-                warnings.warn("You are close to exceeding your GitHub access rate; {} left out of {} initially".format(*self._gh.rate_limiting))
+                warnings.warn("You are close to exceeding your GitHub access "
+                    "rate; {} left out of {} initially".format(*self._gh.rate_limiting))
         else:
             if self.__debug > 0:
                 print "Skipping auth - GitHub accesses will fail."
@@ -147,7 +148,8 @@ class Engine(object):
         """Get the repository of this directory, or error out if not found"""
         repo_dir = commands.getoutput("git rev-parse --show-toplevel")
         if repo_dir.startswith('fatal'):
-            raise RuntimeError("You don't appear to be in a git repository.")
+            print "You don't appear to be in a git repository."
+            return
 
         repo = git.Repo(repo_dir)
         return repo
@@ -199,7 +201,8 @@ class Engine(object):
     @with_summary
     def create_feature(self, name=None, create_tracking_branch=True, summary=None):
         if name is None:
-            raise RuntimeError("Please provide a feature name.")
+            print "Please provide a feature name."
+            return
 
         if self.__debug > 0:
             print "Creating new feature branch..."
@@ -248,7 +251,8 @@ class Engine(object):
     def work_feature(self, name=None, issue=None):
         """Simply checks out the feature branch for the named feature."""
         if name is None and issue is None:
-            raise RuntimeError("please provide a feature name or an issue number.")
+            print "please provide a feature name or an issue number."
+            return
 
         if self.__debug > 0:
             print "switching to a feature branch..."
@@ -278,7 +282,8 @@ class Engine(object):
             print "Switched to branch '{}'".format(branch.name)
 
         else:
-            raise RuntimeError("No feature with name {}".format(name))
+            print "No feature with name {}".format(name)
+            return
 
     @with_summary
     def accept_feature(self, name=None, summary=None):
@@ -288,7 +293,9 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.feature not in name:
-                raise RuntimeError("Please provide a feature name, or switch to the feature branch you want to mark as accepted.")
+                print ("Please provide a feature name, or switch to "
+                    "the feature branch you want to mark as accepted.")
+                return
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
             return_branch = self.develop
@@ -337,7 +344,9 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.feature not in name:
-                raise RuntimeError("Please provide a feature name, or switch to the feature branch you want to abandon.")
+                print ("Please provide a feature name, or switch to "
+                    "the feature branch you want to abandon.")
+                return
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
             return_branch = self.develop
@@ -386,7 +395,9 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.feature not in name:
-                raise RuntimeError("please provide a feature name, or switch to the feature branch you want to publish.")
+                print ("please provide a feature name, or switch to "
+                    "the feature branch you want to publish.")
+                return
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
 
@@ -452,10 +463,12 @@ class Engine(object):
         # if already release branch, abort.
         # checkout -b relase_prefix+branch_name
         if name is None:
-            raise RuntimeError("Please provide a release name.")
+            print "Please provide a release name."
+            return
 
         if any([x for x in self._repo.branches if x.name.startswith(self._cr.flowhub.prefix.release)]):
-            raise RuntimeError("You already have a release in the works - please finish that one.")
+            print "You already have a release in the works - please finish that one."
+            return
 
         if self.__debug > 0:
             print "Creating new release branch..."
@@ -526,7 +539,9 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.release not in name:
-                raise RuntimeError("please provide a release name, or switch to the release branch you want to publish.")
+                print ("please provide a release name, or switch to "
+                    "the release branch you want to publish.")
+                return
 
             name = name.replace(self._cr.flowhub.prefix.release, '')
             return_branch = self.develop
@@ -600,8 +615,11 @@ class Engine(object):
     def contribute_release(self, summary=None):
         if not (self.release and self.release.commit in self._repo.head.reference.object.iter_parents()):
             # Don't allow random branches to be contributed.
-            print "You are attempting to contribute a branch that is not a descendant of a current release."
-            print "Unfortunately, this isn't allowed."
+            print (
+                "You are attempting to contribute a branch that is not a "
+                "descendant of a current release.\n"
+                "Unfortunately, this isn't allowed."
+            )
             return
 
         branch_name = self._repo.head.reference.name
@@ -704,10 +722,13 @@ class Engine(object):
         # if already hotfix branch, abort.
         # checkout -b hotfix_prefix+branch_name
         if name is None:
-            raise RuntimeError("Please provide a release name.")
+            print "Please provide a release name."
+            return
 
         if any([x for x in self._repo.branches if x.name.startswith(self._crflowhub.prefix.hotfix)]):
-            raise RuntimeError("You already have a hotfix in the works - please finish that one.")
+            print (
+                "You already have a hotfix in the works - please finish that one."
+            )
 
         if self.__debug > 0:
             print "Creating new hotfix branch..."
@@ -779,7 +800,9 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.hotfix not in name:
-                raise RuntimeError("please provide a hotfix name, or switch to the hotfix branch you want to publish.")
+                print ("please provide a hotfix name, or switch to "
+                    "the hotfix branch you want to publish.")
+                return
 
             name = name.replace(self._cr.flowhub.prefix.hotfix, '')
             return_branch = self.develop
@@ -873,8 +896,11 @@ class Engine(object):
     def contribute_hotfix(self, summary=None):
         if not (self.hotfix and self.hotfix.commit in self._repo.head.reference.object.iter_parents()):
             # Don't allow random branches to be contributed.
-            print "You are attempting to contribute a branch that is not a descendant of a current hotfix."
-            print "Unfortunately, this isn't allowed."
+            print (
+                "You are attempting to contribute a branch that is not a "
+                "descendant of the current hotfix.\n"
+                "Unfortunately, this isn't allowed."
+            )
             return
 
         branch_name = self._repo.head.reference.name
