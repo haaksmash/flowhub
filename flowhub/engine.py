@@ -73,8 +73,12 @@ class Engine(object):
         # set the token globally, rather than on the repo level.
         authing = commands.getoutput('git config --global --add flowhub.auth.token {}').format(token)
 
+        # Refresh the readers
+        self._cr = Configurator(self._repo.config_reader())
+        self._cw = Configurator(self._repo.config_writer())
+
     def setup_repository_structure(self):
-        if not hasattr(self._cw.flowhub, 'structure'):
+        if not hasattr(self._cw, 'flowhub') or not hasattr(self._cw.flowhub, 'structure'):
             self._cw.add_section('flowhub "structure"')
 
         self._cw.flowhub.structure.name = raw_input("Name of the GitHub repository for this flowhub: ")

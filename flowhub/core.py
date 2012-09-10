@@ -11,7 +11,8 @@ def handle_init_call(args, engine):
     if args.verbosity > 2:
         print "handling init"
 
-    engine.setup_repository_structure()
+    # doesn't do anything but setup.
+    engine()
 
 
 def handle_feature_call(args, engine):
