@@ -801,9 +801,13 @@ class Engine(object):
         ]
 
         # and tag
-        tag_message = raw_input("Message for this tag ({}): ".format(name)),
+        issue_numbers = re.findall('(\d+)-', name)
+        # cut off any issue numbers that may be there
+        default_tag = name[len('-'.join(issue_numbers)) + 1:] if issue_numbers else name
+        tag_label = raw_input("Tag Label [{}]: ".format(default_tag)) or default_tag
+        tag_message = raw_input("Message for this tag:"),
         self._repo.create_tag(
-            path=name,
+            path=tag_label,
             ref=self.master,
             message=tag_message,
         )
@@ -832,7 +836,6 @@ class Engine(object):
             "{}, {}, and tags have been pushed to {}".format(self.master.name, trunk.name, self.canon.name),
         ]
 
-        issue_numbers = re.findall('(\d+)-', name)
         for number in issue_numbers:
             try:
                 number = int(number)
