@@ -276,7 +276,6 @@ class Engine(object):
         else:
             raise RuntimeError("No feature with name {}".format(name))
 
-
     @with_summary
     def accept_feature(self, name=None, summary=None):
         return_branch = self._repo.head.reference
