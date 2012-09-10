@@ -22,7 +22,7 @@ def handle_feature_call(args, engine):
             args.name = "{}-{}".format(args.issue_number, args.name)
         engine.create_feature(
             name=args.name,
-            create_tracking_branch=(not args.no_track),
+            create_tracking_branch=args.track,
         )
 
     elif args.action == 'work':
@@ -147,8 +147,8 @@ def run():
     fstart = feature_subs.add_parser('start',
         help="start a new feature branch")
     fstart.add_argument('name', help="name of the feature")
-    fstart.add_argument('--no-track', default=False, action='store_true',
-        help="do *not* set up a tracking branch on origin.")
+    fstart.add_argument('--track', default=False, action='store_true',
+        help="set up a tracking branch on your github immediately.")
     fstart.add_argument('-i', '--issue-number', type=int,
         action='store', default=None,
         help="prepend an issue number to the feature name")
