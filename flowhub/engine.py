@@ -554,7 +554,7 @@ class Engine(object):
         ]
 
         # and tag
-        tag_message = raw_input("Message for this tag ({}): ".format(name)),
+        tag_message = raw_input("Message for this tag ({}): ".format(name))
         self._repo.create_tag(
             path=name,
             ref=self.master,
@@ -811,7 +811,7 @@ class Engine(object):
         # cut off any issue numbers that may be there
         default_tag = name[len('-'.join(issue_numbers)) + 1:] if issue_numbers else name
         tag_label = raw_input("Tag Label [{}]: ".format(default_tag)) or default_tag
-        tag_message = raw_input("Message for this tag:"),
+        tag_message = raw_input("Message for this tag:")
         self._repo.create_tag(
             path=tag_label,
             ref=self.master,
