@@ -75,7 +75,8 @@ class Engine(object):
         self._cw.flowhub.auth.token = token
 
     def setup_repository_structure(self):
-        self._cw.add_section('flowhub "structure"')
+        if not hasattr(self._cw.flowhub, 'structure'):
+            self._cw.add_section('flowhub "structure"')
 
         self._cw.flowhub.structure.name = raw_input("Name of the GitHub repository for this flowhub: ")
 
@@ -85,7 +86,8 @@ class Engine(object):
         self._cw.flowhub.structure.master = raw_input("Name of the stable branch? [master] ") or 'master'
         self._cw.flowhub.structure.develop = raw_input("Name of the development branch? [develop] ") or 'develop'
 
-        self._cw.add_section('flowhub "prefix"')
+        if not hasattr(self._cr.flowhub, 'prefix'):
+            self._cw.add_section('flowhub "prefix"')
 
         self._cw.flowhub.prefix.feature = raw_input("Prefix for feature branches [feature/]: ") or 'feature/'
         self._cw.flowhub.prefix.release = raw_input("Prefix for release branches [release/]: ") or "release/"
