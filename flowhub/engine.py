@@ -431,7 +431,7 @@ class Engine(object):
 
     def list_features(self):
         for branch in self._repo.branches:
-            if not branch.name.startswith(self._crflowhub.prefix.feature):
+            if not branch.name.startswith(self._cr.flowhub.prefix.feature):
                 continue
             display = '{}'.format(
                 branch.name.replace(
