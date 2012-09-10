@@ -140,7 +140,7 @@ def run():
     release = subparsers.add_parser('release',
         help="do release-related things",)
     cleanup = subparsers.add_parser('cleanup',
-        help="do repository-cleanup related things.",)
+        help="do repository-cleanup related things",)
 
     #
     # Features
