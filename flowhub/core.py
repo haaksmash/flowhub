@@ -4,14 +4,15 @@ import argparse
 from engine import Engine
 
 
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 
 
 def handle_init_call(args, engine):
     if args.verbosity > 2:
         print "handling init"
 
-    engine.setup_repository_structure()
+    # doesn't do anything but setup.
+    engine()
 
 
 def handle_feature_call(args, engine):
