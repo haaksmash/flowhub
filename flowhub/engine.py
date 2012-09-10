@@ -68,7 +68,7 @@ class Engine(object):
             'Flowhub Client',
         )
         token = auth.token
-
+        # set the token globally, rather than on the repo level.
         authing = commands.getoutput('git config --global --add flowhub.auth.token {}').format(token)
 
     def setup_repository_structure(self):
