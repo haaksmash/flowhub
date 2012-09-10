@@ -4,7 +4,7 @@ import argparse
 from engine import Engine
 
 
-__version__ = "0.3.2"
+__version__ = "0.4.0"
 
 
 def handle_init_call(args, engine):
@@ -22,11 +22,14 @@ def handle_feature_call(args, engine):
             args.name = "{}-{}".format(args.issue_number, args.name)
         engine.create_feature(
             name=args.name,
-            create_tracking_branch=(not args.no_track),
+            create_tracking_branch=args.track,
         )
 
     elif args.action == 'work':
-        engine.work_feature(name=args.name)
+        if not args.issue:
+            engine.work_feature(name=args.identifier)
+        else:
+            engine.work_feature(issue=args.identifier)
 
     elif args.action == 'publish':
         try:
@@ -63,6 +66,7 @@ def handle_hotfix_call(args, engine):
     if args.action == 'start':
         engine.start_hotfix(
             name=args.name,
+            issues=args.issue_numbers,
         )
     elif args.action == 'publish':
         engine.publish_hotfix(
@@ -136,7 +140,7 @@ def run():
     release = subparsers.add_parser('release',
         help="do release-related things",)
     cleanup = subparsers.add_parser('cleanup',
-        help="do repository-cleanup related things.",)
+        help="do repository-cleanup related things",)
 
     #
     # Features
@@ -146,15 +150,18 @@ def run():
     fstart = feature_subs.add_parser('start',
         help="start a new feature branch")
     fstart.add_argument('name', help="name of the feature")
-    fstart.add_argument('--no-track', default=False, action='store_true',
-        help="do *not* set up a tracking branch on origin.")
+    fstart.add_argument('--track', default=False, action='store_true',
+        help="set up a tracking branch on your github immediately.")
     fstart.add_argument('-i', '--issue-number', type=int,
-        action='store', default=0,
+        action='store', default=None,
         help="prepend an issue number to the feature name")
 
     fwork = feature_subs.add_parser('work',
         help="switch to a different feature (by name)")
-    fwork.add_argument('name', help="name of feature to switch to")
+    fwork.add_argument('identifier', help="name of feature to switch to")
+    fwork.add_argument('--issue', '-i',
+        action='store_true', default=False,
+        help='switch to a branch by issue number instead of by name')
 
     fpublish = feature_subs.add_parser('publish',
         help="send the current feature branch to origin and create a pull-request")
@@ -185,11 +192,14 @@ def run():
         help="start a new hotfix branch")
     hstart.add_argument('name',
         help="name (and tag) for the hotfix")
+    hstart.add_argument('--issue-numbers', '-i', type=int,
+        default=None, nargs='+',
+        help="specifies the issues this hotfix addresses")
     hpublish = hotfix_subs.add_parser('publish',
         help="publish the hotfix to production and trunk")
     hpublish.add_argument('name', nargs='?',
         help="name of hotfix to publish. If not given, uses current branch.")
-    hcontirbute = hotfix_subs.add_parser('contribute',
+    hcontribute = hotfix_subs.add_parser('contribute',
         help='send this branch as a pull request to the current hotfix')
     #
     # Releases
