@@ -725,7 +725,7 @@ class Engine(object):
             print "Please provide a release name."
             return
 
-        if any([x for x in self._repo.branches if x.name.startswith(self._crflowhub.prefix.hotfix)]):
+        if any([x for x in self._repo.branches if x.name.startswith(self._cr.flowhub.prefix.hotfix)]):
             print (
                 "You already have a hotfix in the works - please finish that one."
             )
