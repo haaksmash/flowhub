@@ -80,11 +80,11 @@ class Engine(object):
 
         self._cw.flowhub.structure.name = raw_input("Name of the GitHub repository for this flowhub: ")
 
-        self._cw.flowhub.structure.origin = raw_input("Name of your github remote? [origin] ") or 'origin'
-        self._cw.flowhub.structure.canon = raw_input('Name of the organization remote? [canon] ') or 'canon'
+        self._cw.flowhub.structure.origin = raw_input("Name of your github remote [origin]: ") or 'origin'
+        self._cw.flowhub.structure.canon = raw_input('Name of the organization remote [canon]: ') or 'canon'
 
-        self._cw.flowhub.structure.master = raw_input("Name of the stable branch? [master] ") or 'master'
-        self._cw.flowhub.structure.develop = raw_input("Name of the development branch? [develop] ") or 'develop'
+        self._cw.flowhub.structure.master = raw_input("Name of the stable branch [master]: ") or 'master'
+        self._cw.flowhub.structure.develop = raw_input("Name of the development branch [develop]: ") or 'develop'
 
         if not hasattr(self._cr.flowhub, 'prefix'):
             self._cw.add_section('flowhub "prefix"')
