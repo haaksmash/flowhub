@@ -241,26 +241,41 @@ class Engine(object):
             "Checked out branch {}".format(branch_name),
         ]
 
-    def work_feature(self, name=None):
+    def work_feature(self, name=None, issue=None):
         """Simply checks out the feature branch for the named feature."""
-        if name is None:
-            raise RuntimeError("please provide a feature name.")
+        if name is None and issue is None:
+            raise RuntimeError("please provide a feature name or an issue number.")
 
         if self.__debug > 0:
             print "switching to a feature branch..."
 
-        branch_name = "{}{}".format(
-            self._cr.flowhub.prefix.feature,
-            name
-        )
+        if name is not None:
+            branch_name = "{}{}".format(
+                self._cr.flowhub.prefix.feature,
+                name
+            )
+
+        elif issue is not None:
+            branch_name = None
+            for branch in self._repo.branches:
+                if not branch.name.startswith(self._cr.flowhub.prefix.feature):
+                    continue
+
+                fname = branch.name[len(self._cr.flowhub.prefix.feature):]
+                if fname.startswith(str(issue)):
+                    branch_name = branch.name
+                    break
+
         branches = [x for x in self._repo.branches if x.name == branch_name]
         if branches:
             branch = branches[0]
+
             branch.checkout()
             print "Switched to branch '{}'".format(branch.name)
 
         else:
             raise RuntimeError("No feature with name {}".format(name))
+
 
     @with_summary
     def accept_feature(self, name=None, summary=None):
