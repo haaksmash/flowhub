@@ -42,9 +42,10 @@ class Engine(object):
                 print "GitHub Engine authorized by token in settings."
         except AttributeError:
             print (
-                "This appears to be the first time you've ever used Flowhub on this"
-                "machine; we'll have to do a little setup.\n"
-                "First, we need to authorize Flowhub to access your GitHub repositories."
+                "Before you can do that, you need to authorize Flowhub to access "
+                "your GitHub repositories.\n"
+                "Entering your credentials now will grant Flowhub full access to "
+                "your public repositories."
             )
             self._create_token()
 
