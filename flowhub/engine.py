@@ -69,7 +69,7 @@ class Engine(object):
         )
         token = auth.token
 
-        self._cw.flowhub.auth.token = token
+        authing = commands.getoutput('git config --global --add flowhub.auth.token {}').format(token)
 
     def setup_repository_structure(self):
         if not hasattr(self._cw.flowhub, 'structure'):
