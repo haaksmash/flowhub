@@ -397,8 +397,7 @@ class Engine(object):
             "Updated {}/{}".format(self.origin.name, branch_name)
         ]
 
-        base_branch = self.release if self.release else self.develop
-        base = base_branch.name
+        base = self.develop.name
         if self.gh_canon == self.origin:
             head = branch_name
         else:
