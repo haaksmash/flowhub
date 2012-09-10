@@ -63,6 +63,7 @@ def handle_hotfix_call(args, engine):
     if args.action == 'start':
         engine.start_hotfix(
             name=args.name,
+            issues=args.issue_numbers,
         )
     elif args.action == 'publish':
         engine.publish_hotfix(
@@ -149,7 +150,7 @@ def run():
     fstart.add_argument('--no-track', default=False, action='store_true',
         help="do *not* set up a tracking branch on origin.")
     fstart.add_argument('-i', '--issue-number', type=int,
-        action='store', default=0,
+        action='store', default=None,
         help="prepend an issue number to the feature name")
 
     fwork = feature_subs.add_parser('work',
@@ -185,11 +186,14 @@ def run():
         help="start a new hotfix branch")
     hstart.add_argument('name',
         help="name (and tag) for the hotfix")
+    hstart.add_argument('--issue-numbers', '-i', type=int,
+        default=None, nargs='+',
+        help="specifies the issues this hotfix addresses")
     hpublish = hotfix_subs.add_parser('publish',
         help="publish the hotfix to production and trunk")
     hpublish.add_argument('name', nargs='?',
         help="name of hotfix to publish. If not given, uses current branch.")
-    hcontirbute = hotfix_subs.add_parser('contribute',
+    hcontribute = hotfix_subs.add_parser('contribute',
         help='send this branch as a pull request to the current hotfix')
     #
     # Releases
