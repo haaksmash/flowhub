@@ -24,8 +24,6 @@ class Engine(object):
             if self.__debug > 0:
                 print "Authorizing engine..."
             self.do_auth()
-            # Refresh the read-only reader.
-            self._cr = Configurator(self._repo.config_reader())
 
             self._gh_repo = self._gh.get_user().get_repo(self._cr.flowhub.structure.name)
 
@@ -43,47 +41,57 @@ class Engine(object):
             if self.__debug > 0:
                 print "GitHub Engine authorized by token in settings."
         except AttributeError:
-            if self.__debug > 0:
-                print "No token - generating new one."
-
             print (
-                "This appears to be the first time you've used Flowhub; "
-                "we'll have to do a little bit of setup."
+                "This appears to be the first time you've ever used Flowhub on this"
+                "machine; we'll have to do a little setup.\n"
+                "First, we need to authorize Flowhub to access your GitHub repositories."
             )
-            self._cw.add_section('flowhub "auth"')
-            self._gh = Github(raw_input("Username: "), getpass.getpass())
+            self._create_token()
 
-            auth = self._gh.get_user().create_authorization(
-                'public_repo',
-                'Flowhub Client',
-            )
-            token = auth.token
+        if hasattr(self._cr, 'flowhub'):
+            return
 
-            self._cw.flowhub.auth.token = token
+        print (
+            "This repository is not yet Flowhub-enabled. Let's take care of that now."
+        )
+        self.setup_repository_structure()
+        print '\n'.join((
+            "You can change these settings just like all git settings, using the\n",
+            "\tgit config\n",
+            "command."
+        ))
 
-            self._cw.add_section('flowhub "structure"')
+    def _create_token(self):
+        self._cw.add_section('flowhub "auth"')
+        self._gh = Github(raw_input("Username: "), getpass.getpass())
 
-            self._cw.flowhub.structure.name = raw_input("Repository name for this flowhub: ")
+        auth = self._gh.get_user().create_authorization(
+            'public_repo',
+            'Flowhub Client',
+        )
+        token = auth.token
 
-            self._cw.flowhub.structure.origin = raw_input("Name of your github remote? [origin] ") or 'origin'
-            self._cw.flowhub.structure.canon = raw_input('Name of the organization remote? [canon] ') or 'canon'
+        self._cw.flowhub.auth.token = token
 
-            self._cw.flowhub.structure.master = raw_input("Name of the stable branch? [master] ") or 'master'
-            self._cw.flowhub.structure.develop = raw_input("Name of the development branch? [develop] ") or 'develop'
+    def setup_repository_structure(self):
+        self._cw.add_section('flowhub "structure"')
 
-            self._cw.add_section('flowhub "prefix"')
+        self._cw.flowhub.structure.name = raw_input("Name of the GitHub repository for this flowhub: ")
 
-            self._cw.flowhub.prefix.feature = raw_input("Prefix for feature branches [feature/]: ") or 'feature/'
-            self._cw.flowhub.prefix.release = raw_input("Prefix for releast branches [release/]: ") or "release/"
-            self._cw.flowhub.prefix.hotfix = raw_input("Prefix for hotfix branches [hotfix/]: ") or "hotfix/"
+        self._cw.flowhub.structure.origin = raw_input("Name of your github remote? [origin] ") or 'origin'
+        self._cw.flowhub.structure.canon = raw_input('Name of the organization remote? [canon] ') or 'canon'
 
-            print '\n'.join((
-                "You can change these settings just like all git settings, using the\n",
-                "\tgit config\n",
-                "command."
-            ))
+        self._cw.flowhub.structure.master = raw_input("Name of the stable branch? [master] ") or 'master'
+        self._cw.flowhub.structure.develop = raw_input("Name of the development branch? [develop] ") or 'develop'
 
-            self._setup_repository_structure()
+        self._cw.add_section('flowhub "prefix"')
+
+        self._cw.flowhub.prefix.feature = raw_input("Prefix for feature branches [feature/]: ") or 'feature/'
+        self._cw.flowhub.prefix.release = raw_input("Prefix for release branches [release/]: ") or "release/"
+        self._cw.flowhub.prefix.hotfix = raw_input("Prefix for hotfix branches [hotfix/]: ") or "hotfix/"
+
+        # Refresh the read-only reader.
+        self._cr = Configurator(self._repo.config_reader())
 
     @property
     def develop(self):
@@ -134,10 +142,6 @@ class Engine(object):
             return hotfixes[0]
         else:
             return None
-
-    def setup_repository_structure(self):
-        # make the repo...correct.
-        pass
 
     def _get_repo(self):
         """Get the repository of this directory, or error out if not found"""
