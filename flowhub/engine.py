@@ -20,16 +20,6 @@ class Engine(object):
         self._cr = Configurator(self._repo.config_reader())
 
         self._gh = None
-        if not hasattr(self._cr, 'flowhub'):
-            print (
-                "This repository is not yet Flowhub-enabled. Let's take care of that now."
-            )
-            self.setup_repository_structure()
-            print '\n'.join((
-                "You can change these settings just like all git settings, using the\n",
-                "\tgit config\n",
-                "command."
-            ))
 
         if not skip_auth:
             if self.__debug > 0:
@@ -59,6 +49,17 @@ class Engine(object):
                 "requires."
             )
             self._create_token()
+
+        if not hasattr(self._cr.flowhub, 'structure'):
+            print (
+                "This repository is not yet Flowhub-enabled. Let's take care of that now."
+            )
+            self.setup_repository_structure()
+            print '\n'.join((
+                "You can change these settings just like all git settings, using the\n",
+                "\tgit config\n",
+                "command."
+            ))
 
     def _create_token(self):
         self._cw.add_section('flowhub "auth"')
