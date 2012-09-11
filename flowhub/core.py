@@ -12,7 +12,7 @@ def handle_init_call(args, engine):
         print "handling init"
 
     # doesn't do anything but setup.
-    engine()
+    # Setup was already done, during engine construction.
 
 
 def handle_feature_call(args, engine):
