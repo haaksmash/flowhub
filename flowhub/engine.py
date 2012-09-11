@@ -49,7 +49,11 @@ class Engine(object):
                 "requires."
             )
             self._create_token()
+            # Refresh the readers
+            self._cr = Configurator(self._repo.config_reader())
 
+        if self.__debug > 2:
+            print "Checking for repo setup"
         if not hasattr(self._cr.flowhub, 'structure'):
             print (
                 "This repository is not yet Flowhub-enabled. Let's take care of that now."
@@ -62,7 +66,6 @@ class Engine(object):
             ))
 
     def _create_token(self):
-        self._cw.add_section('flowhub "auth"')
         self._gh = Github(raw_input("Username: "), getpass.getpass())
 
         auth = self._gh.get_user().create_authorization(
@@ -70,14 +73,16 @@ class Engine(object):
             'Flowhub Client',
         )
         token = auth.token
+        if self.__debug > 2:
+            print "Token generated: ", token
         # set the token globally, rather than on the repo level.
-        authing = commands.getoutput('git config --global --add flowhub.auth.token {}').format(token)
-
-        # Refresh the readers
-        self._cr = Configurator(self._repo.config_reader())
-        self._cw = Configurator(self._repo.config_writer())
+        authing = commands.getoutput('git config --global flowhub.auth.token {}'.format(token))
+        if self.__debug > 2:
+            print authing
 
     def setup_repository_structure(self):
+        if self.__debug > 2:
+            print "Begin repo setup"
         if not hasattr(self._cw, 'flowhub') or not hasattr(self._cw.flowhub, 'structure'):
             self._cw.add_section('flowhub "structure"')
 
