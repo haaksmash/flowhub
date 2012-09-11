@@ -4,7 +4,7 @@ import argparse
 from engine import Engine
 
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 
 def handle_init_call(args, engine):
@@ -12,7 +12,7 @@ def handle_init_call(args, engine):
         print "handling init"
 
     # doesn't do anything but setup.
-    engine()
+    # Setup was already done, during engine construction.
 
 
 def handle_feature_call(args, engine):
