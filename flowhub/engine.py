@@ -54,7 +54,7 @@ class Engine(object):
 
         if self.__debug > 2:
             print "Checking for repo setup"
-        if not hasattr(self._cr.flowhub, 'structure'):
+        if not hasattr(self._cr.flowhub, 'structure') or not hasattr(self._cr.flowhub.structure, 'name'):
             print (
                 "This repository is not yet Flowhub-enabled. Let's take care of that now."
             )
