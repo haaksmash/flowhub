@@ -977,7 +977,8 @@ class Engine(object):
         ]
 
         if create_branch:
-            feature_name = "{}{}".format(
+            feature_name = "{}-{}{}".format(
+                issue.number,
                 self._cr.flowhub.prefix.feature,
                 title.replace(' ', '-').lower(),
             )
