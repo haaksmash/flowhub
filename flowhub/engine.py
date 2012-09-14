@@ -208,8 +208,8 @@ class Engine(object):
 
         return pr
 
-    @with_summary
-    def create_feature(self, name=None, create_tracking_branch=True, summary=None):
+
+    def _create_feature(self, name=None, create_tracking_branch=True, summary=None):
         if name is None:
             print "Please provide a feature name."
             return
@@ -294,6 +294,8 @@ class Engine(object):
         else:
             print "No feature with name {}".format(name)
             return
+
+    create_feature = with_summary(_create_feature)
 
     @with_summary
     def accept_feature(self, name=None, summary=None):
@@ -948,3 +950,43 @@ class Engine(object):
                 pr.issue_url,
             )
         ]
+
+    def _open_issue(self, title=None, labels=None, create_branch=False, summary=None):
+        if title is None:
+            title = raw_input("Title for this issue: ")
+        else:
+            print "Title for this issue: ", title
+
+        if labels is None:
+            labels = []
+
+        gh_labels = [l for l in self._gh_repo.get_labels() if l.name in labels]
+
+        issue = self._gh_repo.create_issue(
+            title=title,
+            body=raw_input("Description (remember, you can use GitHub markdown):\n") or "No description provided.",
+            labels=gh_labels,
+        )
+
+        summary += [
+            'Opened issue #{}: {}{}\n'
+            '\turl: {}'.format(
+                issue.number,
+                title,
+                '\n\t[{}]'.format(' '.join([l.name for l in gh_labels])) if gh_labels else '',
+                issue.url,
+            )
+        ]
+
+        if create_branch:
+            feature_name = "{}-{}".format(
+                issue.number,
+                title.replace(' ', '-').lower(),
+            )
+            self._create_feature(
+                name=feature_name,
+                create_tracking_branch=False,
+                summary=summary,
+            )
+
+    open_issue = with_summary(_open_issue)
