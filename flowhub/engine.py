@@ -948,3 +948,28 @@ class Engine(object):
                 pr.issue_url,
             )
         ]
+
+    @with_summary
+    def open_issue(self, title=None, labels=None, summary=None):
+        if title is None:
+            title = raw_input("Title for this issue: ")
+        if labels is None:
+            labels = []
+
+        gh_labels = [l for l in self._gh_repo.get_labels() if l.name in labels]
+
+        issue = self._gh_repo.create_issue(
+            title=title,
+            body=raw_input("Description (remember, you can use GitHub markdown):\n") or "No description provided.",
+            labels=gh_labels,
+        )
+
+        summary += [
+            'Opened issue #{}: {}{}\n'
+            '\turl: {}'.format(
+                issue.number,
+                title,
+                '\n\t[{}]'.format(' '.join([l.name for l in gh_labels])) if gh_labels else '',
+                issue.url,
+            )
+        ]
