@@ -130,7 +130,8 @@ def handle_issue_call(args, engine):
     if args.action == 'start':
         engine.open_issue(
             title=args.title,
-            labels=args.labels.split(',') if args.labels else None
+            labels=args.labels.split(',') if args.labels else None,
+            create_branch=args.create_branch,
         )
 
 
@@ -263,6 +264,8 @@ def run():
         help="Title of the created issue")
     istart.add_argument('--labels', '-l', default=None, action='store',
         help='Comma-separated list of labels to apply to this bug.\nLabels that don\'t exist won\'t be applied.')
+    istart.add_argument('--create-branch', '-b', default=False, action='store_true',
+        help="Create a feature branch for this issue.")
 
     args = parser.parse_args()
     if args.verbosity > 2:
