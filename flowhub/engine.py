@@ -951,8 +951,7 @@ class Engine(object):
             )
         ]
 
-    @with_summary
-    def open_issue(self, title=None, labels=None, create_branch=False, summary=None):
+    def _open_issue(self, title=None, labels=None, create_branch=False, summary=None):
         if title is None:
             title = raw_input("Title for this issue: ")
         if labels is None:
@@ -977,9 +976,8 @@ class Engine(object):
         ]
 
         if create_branch:
-            feature_name = "{}-{}{}".format(
+            feature_name = "{}-{}".format(
                 issue.number,
-                self._cr.flowhub.prefix.feature,
                 title.replace(' ', '-').lower(),
             )
             self._create_feature(
@@ -987,3 +985,5 @@ class Engine(object):
                 create_tracking_branch=False,
                 summary=summary,
             )
+
+    open_issue = with_summary(_open_issue)
