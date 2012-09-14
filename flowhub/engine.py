@@ -954,6 +954,9 @@ class Engine(object):
     def _open_issue(self, title=None, labels=None, create_branch=False, summary=None):
         if title is None:
             title = raw_input("Title for this issue: ")
+        else:
+            print "Title for this issue: ", title
+
         if labels is None:
             labels = []
 
