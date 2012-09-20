@@ -123,6 +123,18 @@ def handle_cleanup_call(args, engine):
         print "No targets specified for cleanup."
 
 
+def handle_issue_call(args, engine):
+    if args.verbosity > 2:
+        print "handling issue call"
+
+    if args.action == 'start':
+        engine.open_issue(
+            title=args.title,
+            labels=args.labels.split(',') if args.labels else None,
+            create_branch=args.create_branch,
+        )
+
+
 def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
@@ -142,6 +154,8 @@ def run():
         help="do release-related things",)
     cleanup = subparsers.add_parser('cleanup',
         help="do repository-cleanup related things",)
+    issue = subparsers.add_parser('issue',
+        help="do issue-related things",)
 
     #
     # Features
@@ -240,6 +254,19 @@ def run():
     cleanup.add_argument('-a', '--all', action='store_true', default=False,
         help='Shorthand for using the flag -urt')
 
+    #
+    # Issues
+    #
+    issue_subs = issue.add_subparsers(dest='action')
+    istart = issue_subs.add_parser('start',
+        help="Open a new issue on github")
+    istart.add_argument('title', nargs='?', default=None, action='store',
+        help="Title of the created issue")
+    istart.add_argument('--labels', '-l', default=None, action='store',
+        help='Comma-separated list of labels to apply to this bug.\nLabels that don\'t exist won\'t be applied.')
+    istart.add_argument('--create-branch', '-b', default=False, action='store_true',
+        help="Create a feature branch for this issue.")
+
     args = parser.parse_args()
     if args.verbosity > 2:
         print "Args: ", args
@@ -260,6 +287,9 @@ def run():
 
     elif args.subparser == 'init':
         handle_init_call(args, e)
+
+    elif args.subparser == 'issue':
+        handle_issue_call(args, e)
 
     else:
         raise RuntimeError("Unrecognized command: {}".format(args.subparser))
