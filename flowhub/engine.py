@@ -1,18 +1,20 @@
-import commands
 import getpass
 import re
+import subprocess
 import warnings
 
 import git
-from github import Github
+from github import Github, GithubException
 
-from configurator import Configurator
+from configurator import Configurator, ImproperlyConfigured
 from decorators import with_summary
 
 
 class Engine(object):
     def __init__(self, debug=0, skip_auth=False):
         self.__debug = debug
+        if self.__debug > 2:
+            print "initing engine"
 
         self._repo = self._get_repo()
 
@@ -26,7 +28,13 @@ class Engine(object):
                 print "Authorizing engine..."
             self.do_auth()
 
-            self._gh_repo = self._gh.get_user().get_repo(self._cr.flowhub.structure.name)
+            try:
+                self._gh_repo = self._gh.get_user().get_repo(self._cr.flowhub.structure.name)
+            except GithubException:
+                try:
+                    self._get_repo = [x for x in self._gh.get_user().get_repos() if x.name == self._cr.flowhub.structure.name][0]
+                except IndexError:
+                    raise ImproperlyConfigured("No repo with given name: {}".format(self._cr.flowhub.structure.name))
 
             if self._gh.rate_limiting[0] < 100:
                 warnings.warn("You are close to exceeding your GitHub access "
@@ -69,14 +77,14 @@ class Engine(object):
         self._gh = Github(raw_input("Username: "), getpass.getpass())
 
         auth = self._gh.get_user().create_authorization(
-            'public_repo',
+            'repo',
             'Flowhub Client',
         )
         token = auth.token
         if self.__debug > 2:
             print "Token generated: ", token
         # set the token globally, rather than on the repo level.
-        authing = commands.getoutput('git config --global flowhub.auth.token {}'.format(token))
+        authing = subprocess.check_output('git config --global flowhub.auth.token {}'.format(token)).strip()
         if self.__debug > 2:
             print authing
 
@@ -106,18 +114,26 @@ class Engine(object):
 
     @property
     def develop(self):
+        if self.__debug > 2:
+            print "finding develop branch"
         return [x for x in self._repo.heads if x.name == self._cr.flowhub.structure.develop][0]
 
     @property
     def master(self):
+        if self.__debug > 2:
+            print "finding master branch"
         return [x for x in self._repo.heads if x.name == self._cr.flowhub.structure.master][0]
 
     @property
     def origin(self):
+        if self.__debug > 2:
+            print "finding origin repo"
         return self._repo.remote(self._cr.flowhub.structure.origin)
 
     @property
     def canon(self):
+        if self.__debug > 2:
+            print "finding canon repo"
         return self._repo.remote(self._cr.flowhub.structure.canon)
 
     @property
@@ -156,12 +172,19 @@ class Engine(object):
 
     def _get_repo(self):
         """Get the repository of this directory, or error out if not found"""
-        repo_dir = commands.getoutput("git rev-parse --show-toplevel")
+        if self.__debug > 2:
+            print "checking for repo-ness"
+        repo_dir = subprocess.check_output("git rev-parse --show-toplevel").strip()
+        print "repo directory: ", repo_dir
         if repo_dir.startswith('fatal'):
             print "You don't appear to be in a git repository."
             return
 
+        if self.__debug > 2:
+            print "creating Repo object from dir:", repo_dir
         repo = git.Repo(repo_dir)
+        if self.__debug > 2:
+            print "Found repo:", repo_dir
         return repo
 
     def _create_pull_request(self, base, head, repo=None):

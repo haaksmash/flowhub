@@ -2,6 +2,8 @@ from ConfigParser import DuplicateSectionError
 from collections import OrderedDict
 import re
 
+class ImproperlyConfigured(Exception):
+    pass
 
 class Configurator(object):
     """Supports configuration files with subsections, given git.config.write
