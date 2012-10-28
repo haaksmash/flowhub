@@ -477,9 +477,12 @@ class Engine(object):
         ]
 
     def list_features(self):
-        for branch in self._repo.branches:
-            if not branch.name.startswith(self._cr.flowhub.prefix.feature):
-                continue
+        features = [b for b in self._repo.branches if b.name.startswith(self._cr.flowhub.prefix.feature)]
+        if not features:
+            print "There are no feature branches."
+            return
+            
+        for branch in features:
             display = '{}'.format(
                 branch.name.replace(
                     self._cr.flowhub.prefix.feature,
