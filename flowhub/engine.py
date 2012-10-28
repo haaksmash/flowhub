@@ -175,7 +175,8 @@ class Engine(object):
         if self.__debug > 2:
             print "checking for repo-ness"
         repo_dir = subprocess.check_output("git rev-parse --show-toplevel").strip()
-        print "repo directory: ", repo_dir
+        if self.__debug > 1:
+            print "repo directory: ", repo_dir
         if repo_dir.startswith('fatal'):
             print "You don't appear to be in a git repository."
             return
