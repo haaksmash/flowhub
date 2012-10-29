@@ -114,26 +114,26 @@ class Engine(object):
 
     @property
     def develop(self):
-        if self.__debug > 2:
-            print "finding develop branch"
+        if self.__debug > 3:
+            print "finding develop branch {}".format(self._cr.flowhub.structure.develop)
         return [x for x in self._repo.heads if x.name == self._cr.flowhub.structure.develop][0]
 
     @property
     def master(self):
-        if self.__debug > 2:
-            print "finding master branch"
+        if self.__debug > 3:
+            print "finding master branch {}".format(self._cr.flowhub.structure.master)
         return [x for x in self._repo.heads if x.name == self._cr.flowhub.structure.master][0]
 
     @property
     def origin(self):
-        if self.__debug > 2:
-            print "finding origin repo"
+        if self.__debug > 3:
+            print "finding origin repo {}".format(self._cr.flowhub.structure.origin)
         return self._repo.remote(self._cr.flowhub.structure.origin)
 
     @property
     def canon(self):
-        if self.__debug > 2:
-            print "finding canon repo"
+        if self.__debug > 3:
+            print "finding canon repo {}".format(self._cr.flowhub.structure.canon)
         return self._repo.remote(self._cr.flowhub.structure.canon)
 
     @property
@@ -174,7 +174,7 @@ class Engine(object):
         """Get the repository of this directory, or error out if not found"""
         if self.__debug > 2:
             print "checking for repo-ness"
-        repo_dir = subprocess.check_output("git rev-parse --show-toplevel").strip()
+        repo_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).strip()
         if self.__debug > 1:
             print "repo directory: ", repo_dir
         if repo_dir.startswith('fatal'):
@@ -231,7 +231,6 @@ class Engine(object):
             )
 
         return pr
-
 
     def _create_feature(self, name=None, create_tracking_branch=True, summary=None):
         if name is None:
@@ -481,7 +480,7 @@ class Engine(object):
         if not features:
             print "There are no feature branches."
             return
-            
+
         for branch in features:
             display = '{}'.format(
                 branch.name.replace(
@@ -836,7 +835,7 @@ class Engine(object):
         return_branch = self._repo.head.reference
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
-            # but only if it's a feature branch.
+            # but only if it's a hotfix branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.hotfix not in name:
                 print ("please provide a hotfix name, or switch to "
@@ -873,7 +872,7 @@ class Engine(object):
         # cut off any issue numbers that may be there
         default_tag = name[len('-'.join(issue_numbers)) + 1:] if issue_numbers else name
         tag_label = raw_input("Tag Label [{}]: ".format(default_tag)) or default_tag
-        tag_message = raw_input("Message for this tag:")
+        tag_message = raw_input("Message for this tag: ")
         self._repo.create_tag(
             path=tag_label,
             ref=self.master,
