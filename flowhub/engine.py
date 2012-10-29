@@ -84,7 +84,7 @@ class Engine(object):
         if self.__debug > 2:
             print "Token generated: ", token
         # set the token globally, rather than on the repo level.
-        authing = subprocess.check_output('git config --global flowhub.auth.token {}'.format(token)).strip()
+        authing = subprocess.check_output('git config --global flowhub.auth.token {}'.format(token), shell=True).strip()
         if self.__debug > 2:
             print authing
 
