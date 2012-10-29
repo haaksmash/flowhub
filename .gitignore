@@ -6,3 +6,4 @@ build
 *.pyc
 dist
 flowhub.egg-info
+test_repo
