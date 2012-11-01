@@ -74,19 +74,20 @@ class Engine(object):
             ))
 
     def _create_token(self):
+        # Don't store the users' information.
         self._gh = Github(raw_input("Username: "), getpass.getpass())
 
         auth = self._gh.get_user().create_authorization(
-            'repo',
+            'user,repo,gist',
             'Flowhub Client',
         )
         token = auth.token
         if self.__debug > 2:
             print "Token generated: ", token
         # set the token globally, rather than on the repo level.
-        authing = subprocess.check_output('git config --global flowhub.auth.token {}'.format(token), shell=True).strip()
+        authing = subprocess.check_output('git config --global --add flowhub.auth.token {}'.format(token), shell=True).strip()
         if self.__debug > 2:
-            print authing
+            print "result of config set:", authing
 
     def setup_repository_structure(self):
         if self.__debug > 2:
