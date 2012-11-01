@@ -5,7 +5,9 @@ Flowhub
 Flowhub translates the workflow implemented by the excellent
 `git-flow <http://github.com/nvie/gitflow>`_ Git add-on to GitHub.
 
-Flowhub has no meaning outside of a Git repository. After installing,
+Flowhub has no meaning outside of a Git repository.
+
+After installing,
 you'll have access to the ``flowhub`` command:
 
 .. code-block:: bash
