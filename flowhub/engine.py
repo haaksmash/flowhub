@@ -50,7 +50,9 @@ class Engine(object):
         if not skip_auth:
             if self.__debug > 0:
                 print "Authorizing engine..."
-            self.do_auth()
+            if not self.do_auth():
+                print "Authorization failed! Exiting."
+                return
 
             try:
                 self._gh_repo = self._gh.get_user().get_repo(self._cr.flowhub.structure.name)
@@ -80,7 +82,8 @@ class Engine(object):
                 "Entering your credentials now will grant Flowhub the access it "
                 "requires."
             )
-            self._create_token()
+            if not self._create_token():
+                return False
             # Refresh the readers
             self._cr = Configurator(self._repo.config_reader())
 
@@ -96,15 +99,24 @@ class Engine(object):
                 "\tgit config\n",
                 "command."
             ))
+        return True
 
     def _create_token(self):
         # Don't store the users' information.
-        self._gh = Github(raw_input("Username: "), getpass.getpass())
+        for i in range(3):
+            self._gh = Github(raw_input("Username: "), getpass.getpass())
 
-        auth = self._gh.get_user().create_authorization(
-            'user,repo,gist',
-            'Flowhub Client',
-        )
+            try:
+                auth = self._gh.get_user().create_authorization(
+                    'user,repo,gist',
+                    'Flowhub Client',
+                )
+                break
+            except GithubException:
+                print "Invalid username/password combination."
+                if i == 2:
+                    return False
+
         token = auth.token
         if self.__debug > 2:
             print "Token generated: ", token
@@ -112,6 +124,8 @@ class Engine(object):
         authing = subprocess.check_output('git config --global --add flowhub.auth.token {}'.format(token), shell=True).strip()
         if self.__debug > 2:
             print "result of config set:", authing
+
+        return True
 
     def setup_repository_structure(self):
         if self.__debug > 2:
@@ -271,15 +285,24 @@ class Engine(object):
 
             if self.__debug > 1:
                 print (issue.title, issue.body, base, head)
-            pr = repo.create_pull(
-                title=issue.title,
-                body=issue.body,
-                base=base,
-                head=head,
-            )
+
         else:
-            issue_number = raw_input("Issue number: ")
-            issue = repo.get_issue(int(issue_number))
+            good_number = False
+            while not good_number:
+                try:
+                    issue_number = int(raw_input("Issue number: "))
+                except ValueError:
+                    print "That isn't a valid number."
+                    continue
+
+                try:
+                    issue = repo.get_issue(issue_number)
+                except GithubException:
+                    print "That's not a valid issue."
+                    continue
+
+                good_number = True
+
             pr = repo.create_pull(
                 issue=issue,
                 base=base,
