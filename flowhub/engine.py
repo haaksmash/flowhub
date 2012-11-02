@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import getpass
 import re
 import subprocess
+import tempfile
 import warnings
 
 import git
@@ -38,6 +39,8 @@ class Engine(object):
             print "initing engine"
 
         self._repo = self._get_repo()
+        if not self._repo:
+            return
 
         self._cw = Configurator(self._repo.config_writer())
         self._cr = Configurator(self._repo.config_reader())
@@ -227,18 +230,19 @@ class Engine(object):
         """Get the repository of this directory, or error out if not found"""
         if self.__debug > 2:
             print "checking for repo-ness"
-        repo_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).strip()
-        if self.__debug > 1:
-            print "repo directory: ", repo_dir
-        if repo_dir.startswith('fatal'):
+        try:
+            repo_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).strip()
+        except subprocess.CalledProcessError:
             print "You don't appear to be in a git repository."
-            return
+            return False
+
+        if self.__debug > 2:
+            print "repo directory: ", repo_dir
 
         if self.__debug > 2:
             print "creating Repo object from dir:", repo_dir
         repo = git.Repo(repo_dir)
-        if self.__debug > 2:
-            print "Found repo:", repo_dir
+
         return repo
 
     def _create_pull_request(self, base, head, repo=None):
@@ -260,10 +264,11 @@ class Engine(object):
             )
             return pr
 
-        is_issue = raw_input("Is this feature answering an issue? [y/N] ") == 'y'
+        is_issue = raw_input("Is this feature answering an issue? [y/N] ").lower() == 'y'
 
         if not is_issue:
             title = raw_input("Title: ")
+
             body = raw_input("Description (remember, you can use GitHub markdown):\n")
 
             if self.__debug > 1:
@@ -1041,9 +1046,46 @@ class Engine(object):
 
         gh_labels = [l for l in self._gh_repo.get_labels() if l.name in labels]
 
+        # Open the $EDITOR, if you can...
+        descr_f = tempfile.NamedTemporaryFile(delete=False)
+        descr_f.file.write(
+            "\n\n# Write your description above. Remember - you can use GitHub markdown syntax!"
+        )
+        if self.__debug > 3:
+            print "Temp file: ", descr_f.name
+        # regardless, close the tempfile.
+        descr_f.close()
+
+        editor_result = subprocess.check_call(
+            "$EDITOR {}".format(descr_f.name),
+            shell=True
+        )
+
+        if self.__debug > 3:
+            print "result of $EDITOR: ", editor_result
+
+        if editor_result == 0:
+            # Re-open the file to get new contents...
+            fnew = open(descr_f.name, 'r')
+            # and remove the first line
+            body = fnew.readlines()
+            if body[-1].startswith('# Write your description'):
+                body = body[:-1]
+
+            body = "".join(body)
+
+            fnew.close()
+        else:
+            body = raw_input(
+                "Description (remember, you can use GitHub markdown):\n"
+            )
+
+        if self.__debug > 3:
+            print "Description used:\n", body
+
         issue = self._gh_repo.create_issue(
             title=title,
-            body=raw_input("Description (remember, you can use GitHub markdown):\n") or "No description provided.",
+            body=body or "No description provided.",
             labels=gh_labels,
         )
 
