@@ -267,15 +267,13 @@ class Engine(object):
         is_issue = raw_input("Is this feature answering an issue? [y/N] ").lower() == 'y'
 
         if not is_issue:
-            title = raw_input("Title: ")
-
-            body = raw_input("Description (remember, you can use GitHub markdown):\n")
+            issue = self._open_issue(return_values=True)
 
             if self.__debug > 1:
-                print (title, body, base, head)
+                print (issue.title, issue.body, base, head)
             pr = repo.create_pull(
-                title=title,
-                body=body,
+                title=issue.title,
+                body=issue.body,
                 base=base,
                 head=head,
             )
@@ -1035,7 +1033,8 @@ class Engine(object):
             )
         ]
 
-    def _open_issue(self, title=None, labels=None, create_branch=False, summary=None):
+    def _open_issue(self, title=None, labels=None, create_branch=False,
+        summary=None, return_values=False):
         if title is None:
             title = raw_input("Title for this issue: ")
         else:
@@ -1043,6 +1042,9 @@ class Engine(object):
 
         if labels is None:
             labels = []
+
+        if summary is None:
+            summary = []
 
         gh_labels = [l for l in self._gh_repo.get_labels() if l.name in labels]
 
@@ -1109,5 +1111,7 @@ class Engine(object):
                 create_tracking_branch=False,
                 summary=summary,
             )
+        if return_values:
+            return issue
 
     open_issue = with_summary(_open_issue)
