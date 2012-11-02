@@ -24,7 +24,7 @@ import argparse
 from engine import Engine
 
 
-__version__ = "0.4.4"
+__version__ = "0.4.5"
 
 
 def handle_init_call(args, engine):
