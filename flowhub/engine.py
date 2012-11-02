@@ -207,7 +207,7 @@ class Engine(object):
         # official version releases are named release/#.#.#
         releases = [x for x in self._repo.branches if x.name.startswith(
                 self._cr.flowhub.prefix.release,
-            ) and re.match('\d.\d.\d', x.name.split('/')[-1])]
+            )]
 
         if releases:
             return releases[0]
