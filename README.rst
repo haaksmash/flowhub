@@ -39,15 +39,15 @@ Let's examine a common use-case: you've forked another repository on GitHub
 (totally coincidentally, this happens to be the case that Flowhub was written
 for - though it doesn't require this set up).
 
+init
+++++
+
 Suzy has forked a fellow developer's repository, and already has a clone of it
 on her development box. She wants to keep her contributions orderly, and
 (luckily!) the original repository adheres to a single-stable/single-dev branching
 philosophy already (Flowhub doesn't require this, but it makes things easier).
 
 Suzy decides to use Flowhub (she's got a bright future).
-
-init
-++++
 
 .. code-block:: bash
 
@@ -60,6 +60,8 @@ decided to keep all of Flowhub's defaults).
 feature start
 +++++++++++++++
 
+She's already got some ideas about how to improve the project:
+
 .. code-block:: bash
 
     flowhub feature start suzy-feature-the-first
@@ -67,7 +69,20 @@ feature start
 
     Summary of actions:
      - New branch feature/suzy-feature-the-first, from branch develop
-     - Checked out out branch feature/suzy-feature-the-first
+     - Checked out branch feature/suzy-feature-the-first
+
+She's also come up with a solution to an existing issue:
+
+.. code-block:: bash
+
+    flowhub feature start -i 13 i-know-the-answer
+    Password for 'https://suzyongithub@github.com':
+
+    Summary of actions:
+     - New branch feature/13-i-know-the-answer, from branch develop
+     - Checked out branch feature/13-i-know-the-answer
+
+When she's ready to publish, that branch will be tied to issue #13 on ``canon``.
 
 feature publish
 +++++++++++++++
@@ -82,7 +97,7 @@ feedback from the original repository. Flowhub makes this a cakewalk.
 Flowhub creates a pull-request for her, and reports the url so she can quickly
 navigate to it.
 
-After she's gotten some feedback and addressed it, she runs the same command.
+When she's gotten some feedback and addressed it, she runs the same command.
 Flowhub updates the pull-request for her.
 
 feature abandon/accepted
@@ -104,7 +119,7 @@ When her pull-request has been accepted, Suzy can run
 from her feature branch, and Flowhub will clean things up a bit. She can also
 specify a feature name, if she's not currently on the accepted branch.
 
-If Suzy's feature is deemed a non-started, and summarily rejected, Flowhub is
+If Suzy's feature is deemed a non-starter, and summarily rejected, Flowhub is
 there to comfort her:
 
 .. code-block:: bash
@@ -125,14 +140,15 @@ complain if the feature branch hasn't been fully merged into your trunk branch;
 feature list
 ++++++++++++
 
-At any time, Suzy can get a list of her current features' names (in case she's
-been so busy that she's lost track of them, for example).
+At any time, Suzy can get a list of her current features' names (she's
+been so prolific that she's lost track of them all).
 
 .. code-block:: bash
 
     flowhub feature list
       suzy-feature-the-first
     * suzy-currently-checkedout-feature
+      # ...
       suzy-feature-the-millionth
 
 release/hotfix contribute
@@ -164,7 +180,9 @@ promotion).
 Now Suzy can make use of Flowhub's managerial commands.
 
 A milestone has been reached in her project, and it's time to get ready to
-release a new version.
+release a new version (Suzy's repository is a good fit for ``git-flow`` - if
+Github-flow were a better match for her, she wouldn't need the managerial
+commands at all).
 
 .. code-block:: bash
 
@@ -199,7 +217,7 @@ When the release is polished to Suzy's satisfaction, she publishes the release:
      - Checked out branch develop
 
 
-A few days later, Suzy notices that a frankly embarrassingly bad bug snuck
+A few days later, Suzy notices that a rare but seriously bad bug snuck
 through testing, and is affecting users. Suzy doesn't panic - she has Flowhub:
 
 .. code-block:: bash
@@ -233,6 +251,6 @@ When the bug's been killed, Suzy runs
      - Branch hotfix/0.3.1 removed
      - Checked out branch develop
 
-If Suzy had a release branch at the time, the hotfix would have been merged into
-that instead of her trunk; the bug would have been killed in trunk when the
-release was published.
+If Suzy had been running a release branch at the time, the hotfix would have
+been merged into that instead of her trunk; the bug would have been killed in
+trunk when the release was published.
