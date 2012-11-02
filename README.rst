@@ -2,14 +2,15 @@ flowhub
 =======
 
 Flowhub translates the workflow implemented by the excellent
-`git-flow <http://github.com/nvie/gitflow>`_ Git add-on to GitHub.
+`git-flow <http://www.github.com/nvie/gitflow>`_ Git add-on to GitHub.
 
 Scott Chacon (of GitHub fame) points out that sometimes ``git-flow`` isn't the
 best workflow for an agile team. Flowhub is cool with that, too - setting the
 options one way gives you a translation of ``git-flow``, and setting them
 a slightly different way gives you a translation of
-`GitHub Flow <scottchacon.com/2011/08/31/github-flow.html>`_. You can also
-get a hybrid of the two, if that floats your boat.
+`GitHub Flow <http://scottchacon.com/2011/08/31/github-flow.html>`_.
+
+You can also get a hybrid of the two, if that floats your boat.
 
 Flowhub has no meaning outside of a Git repository.
 
