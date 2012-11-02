@@ -119,10 +119,31 @@ class Engine(object):
         self._cw.flowhub.structure.name = raw_input("Name of the GitHub repository for this flowhub: ")
 
         self._cw.flowhub.structure.origin = raw_input("Name of your github remote [origin]: ") or 'origin'
+        if not self._ensure_remote_exists(self._cw.flowhub.structure.origin):
+            print "Whoops! That remote doesn't exist."
+            remote_url = raw_input("Remote url: ")
+            self._repo.create_remote(
+                self._cw.flowhub.structure.origin,
+                remote_url,
+            )
         self._cw.flowhub.structure.canon = raw_input('Name of the organization remote [canon]: ') or 'canon'
+        if not self._ensure_remote_exists(self._cw.flowhub.structure.canon):
+            print "Whoops! That remote doesn't exist."
+            remote_url = raw_input("Remote url: ")
+            self._repo.create_remote(
+                self._cw.flowhub.structure.canon,
+                remote_url,
+            )
 
         self._cw.flowhub.structure.master = raw_input("Name of the stable branch [master]: ") or 'master'
+        if not self._ensure_branch_exists(self._cw.flowhub.structure.master):
+            print "\tCreating branch {}".format(self._cw.flowhub.structure.master)
+            self._repo.create_head(self._cw.flowhub.structure.master)
+
         self._cw.flowhub.structure.develop = raw_input("Name of the development branch [develop]: ") or 'develop'
+        if not self._ensure_branch_exists(self._cw.flowhub.structure.master):
+            print "\tCreating branch {}".format(self._cw.flowhub.structure.develop)
+            self._repo.create_head(self._cw.flowhub.structure.master)
 
         if not hasattr(self._cr.flowhub, 'prefix'):
             self._cw.add_section('flowhub "prefix"')
@@ -133,6 +154,16 @@ class Engine(object):
 
         # Refresh the read-only reader.
         self._cr = Configurator(self._repo.config_reader())
+
+    def _ensure_branch_exists(self, branch_name):
+        if self.__debug > 2:
+            print "Checking for existence of branch {}".format(branch_name)
+        return getattr(self._repo.heads, branch_name, None) is not None
+
+    def _ensure_remote_exists(self, repo_name):
+        if self.__debug > 2:
+            print "Checking for existence of remote {}".format(repo_name)
+        return getattr(self._repo.remotes, repo_name, None) is not None
 
     @property
     def develop(self):
