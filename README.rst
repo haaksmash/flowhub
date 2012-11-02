@@ -1,5 +1,4 @@
-=======
-Flowhub
+flowhub
 =======
 
 Flowhub translates the workflow implemented by the excellent
