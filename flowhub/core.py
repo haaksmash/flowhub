@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Copyright (C) 2012 Haak Saxberg
 
@@ -18,14 +19,12 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
-
-#!/usr/bin/env python
 import argparse
 
 from engine import Engine
 
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 
 
 def handle_init_call(args, engine):
