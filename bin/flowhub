@@ -8,4 +8,4 @@ except (KeyboardInterrupt, SystemExit), e:
     print "Cleaning up before exiting..."
 except Exception, e:
     print "Caught exception: "
-    print e
+    print e.__class__.__name__, "-", e
