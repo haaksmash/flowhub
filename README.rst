@@ -43,7 +43,7 @@ on her development box. She wants to keep her contributions orderly, and
 (luckily!) the original repository adheres to a single-stable/single-dev branching
 philosophy already (Flowhub doesn't require this, but it makes things easier).
 
-Suzy decides to use Flowhub.
+Suzy decides to use Flowhub (she's got a bright future).
 
 init
 ++++
