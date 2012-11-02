@@ -1058,10 +1058,15 @@ class Engine(object):
         # regardless, close the tempfile.
         descr_f.close()
 
-        editor_result = subprocess.check_call(
-            "$EDITOR {}".format(descr_f.name),
-            shell=True
-        )
+        try:
+            editor_result = subprocess.check_call(
+                "$EDITOR {}".format(descr_f.name),
+                shell=True
+            )
+        except OSError:
+            if self.__debug > 2:
+                print "Hmm...are you on Windows?"
+            editor_result = 126
 
         if self.__debug > 3:
             print "result of $EDITOR: ", editor_result
