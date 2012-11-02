@@ -205,7 +205,6 @@ When the release is polished to Suzy's satisfaction, she publishes the release:
 
     flowhub release publish # Suzy is on the release she wants to publish; she could also name it here.
     Message for this tag (0.3): Lotta cool stuff here!
-    # Some passwords
 
     Summary of actions:
      - Latest objects fetched from canon
