@@ -1,18 +1,41 @@
-import commands
+"""
+Copyright (C) 2012 Haak Saxberg
+
+This file is part of Flowhub, a command-line tool to enable various
+Git-based workflows that interacts with GitHub.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 3
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+"""
+
 import getpass
 import re
+import subprocess
 import warnings
 
 import git
-from github import Github
+from github import Github, GithubException
 
-from configurator import Configurator
+from configurator import Configurator, ImproperlyConfigured
 from decorators import with_summary
 
 
 class Engine(object):
     def __init__(self, debug=0, skip_auth=False):
         self.__debug = debug
+        if self.__debug > 2:
+            print "initing engine"
 
         self._repo = self._get_repo()
 
@@ -26,7 +49,13 @@ class Engine(object):
                 print "Authorizing engine..."
             self.do_auth()
 
-            self._gh_repo = self._gh.get_user().get_repo(self._cr.flowhub.structure.name)
+            try:
+                self._gh_repo = self._gh.get_user().get_repo(self._cr.flowhub.structure.name)
+            except GithubException:
+                try:
+                    self._get_repo = [x for x in self._gh.get_user().get_repos() if x.name == self._cr.flowhub.structure.name][0]
+                except IndexError:
+                    raise ImproperlyConfigured("No repo with given name: {}".format(self._cr.flowhub.structure.name))
 
             if self._gh.rate_limiting[0] < 100:
                 warnings.warn("You are close to exceeding your GitHub access "
@@ -66,19 +95,20 @@ class Engine(object):
             ))
 
     def _create_token(self):
+        # Don't store the users' information.
         self._gh = Github(raw_input("Username: "), getpass.getpass())
 
         auth = self._gh.get_user().create_authorization(
-            'public_repo',
+            'user,repo,gist',
             'Flowhub Client',
         )
         token = auth.token
         if self.__debug > 2:
             print "Token generated: ", token
         # set the token globally, rather than on the repo level.
-        authing = commands.getoutput('git config --global flowhub.auth.token {}'.format(token))
+        authing = subprocess.check_output('git config --global --add flowhub.auth.token {}'.format(token), shell=True).strip()
         if self.__debug > 2:
-            print authing
+            print "result of config set:", authing
 
     def setup_repository_structure(self):
         if self.__debug > 2:
@@ -89,10 +119,31 @@ class Engine(object):
         self._cw.flowhub.structure.name = raw_input("Name of the GitHub repository for this flowhub: ")
 
         self._cw.flowhub.structure.origin = raw_input("Name of your github remote [origin]: ") or 'origin'
+        if not self._ensure_remote_exists(self._cw.flowhub.structure.origin):
+            print "Whoops! That remote doesn't exist."
+            remote_url = raw_input("Remote url: ")
+            self._repo.create_remote(
+                self._cw.flowhub.structure.origin,
+                remote_url,
+            )
         self._cw.flowhub.structure.canon = raw_input('Name of the organization remote [canon]: ') or 'canon'
+        if not self._ensure_remote_exists(self._cw.flowhub.structure.canon):
+            print "Whoops! That remote doesn't exist."
+            remote_url = raw_input("Remote url: ")
+            self._repo.create_remote(
+                self._cw.flowhub.structure.canon,
+                remote_url,
+            )
 
         self._cw.flowhub.structure.master = raw_input("Name of the stable branch [master]: ") or 'master'
+        if not self._ensure_branch_exists(self._cw.flowhub.structure.master):
+            print "\tCreating branch {}".format(self._cw.flowhub.structure.master)
+            self._repo.create_head(self._cw.flowhub.structure.master)
+
         self._cw.flowhub.structure.develop = raw_input("Name of the development branch [develop]: ") or 'develop'
+        if not self._ensure_branch_exists(self._cw.flowhub.structure.master):
+            print "\tCreating branch {}".format(self._cw.flowhub.structure.develop)
+            self._repo.create_head(self._cw.flowhub.structure.master)
 
         if not hasattr(self._cr.flowhub, 'prefix'):
             self._cw.add_section('flowhub "prefix"')
@@ -104,20 +155,38 @@ class Engine(object):
         # Refresh the read-only reader.
         self._cr = Configurator(self._repo.config_reader())
 
+    def _ensure_branch_exists(self, branch_name):
+        if self.__debug > 2:
+            print "Checking for existence of branch {}".format(branch_name)
+        return getattr(self._repo.heads, branch_name, None) is not None
+
+    def _ensure_remote_exists(self, repo_name):
+        if self.__debug > 2:
+            print "Checking for existence of remote {}".format(repo_name)
+        return getattr(self._repo.remotes, repo_name, None) is not None
+
     @property
     def develop(self):
+        if self.__debug > 3:
+            print "finding develop branch {}".format(self._cr.flowhub.structure.develop)
         return [x for x in self._repo.heads if x.name == self._cr.flowhub.structure.develop][0]
 
     @property
     def master(self):
+        if self.__debug > 3:
+            print "finding master branch {}".format(self._cr.flowhub.structure.master)
         return [x for x in self._repo.heads if x.name == self._cr.flowhub.structure.master][0]
 
     @property
     def origin(self):
+        if self.__debug > 3:
+            print "finding origin repo {}".format(self._cr.flowhub.structure.origin)
         return self._repo.remote(self._cr.flowhub.structure.origin)
 
     @property
     def canon(self):
+        if self.__debug > 3:
+            print "finding canon repo {}".format(self._cr.flowhub.structure.canon)
         return self._repo.remote(self._cr.flowhub.structure.canon)
 
     @property
@@ -156,12 +225,20 @@ class Engine(object):
 
     def _get_repo(self):
         """Get the repository of this directory, or error out if not found"""
-        repo_dir = commands.getoutput("git rev-parse --show-toplevel")
+        if self.__debug > 2:
+            print "checking for repo-ness"
+        repo_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).strip()
+        if self.__debug > 1:
+            print "repo directory: ", repo_dir
         if repo_dir.startswith('fatal'):
             print "You don't appear to be in a git repository."
             return
 
+        if self.__debug > 2:
+            print "creating Repo object from dir:", repo_dir
         repo = git.Repo(repo_dir)
+        if self.__debug > 2:
+            print "Found repo:", repo_dir
         return repo
 
     def _create_pull_request(self, base, head, repo=None):
@@ -208,8 +285,7 @@ class Engine(object):
 
         return pr
 
-    @with_summary
-    def create_feature(self, name=None, create_tracking_branch=True, summary=None):
+    def _create_feature(self, name=None, create_tracking_branch=True, summary=None):
         if name is None:
             print "Please provide a feature name."
             return
@@ -294,6 +370,8 @@ class Engine(object):
         else:
             print "No feature with name {}".format(name)
             return
+
+    create_feature = with_summary(_create_feature)
 
     @with_summary
     def accept_feature(self, name=None, summary=None):
@@ -451,9 +529,12 @@ class Engine(object):
         ]
 
     def list_features(self):
-        for branch in self._repo.branches:
-            if not branch.name.startswith(self._cr.flowhub.prefix.feature):
-                continue
+        features = [b for b in self._repo.branches if b.name.startswith(self._cr.flowhub.prefix.feature)]
+        if not features:
+            print "There are no feature branches."
+            return
+
+        for branch in features:
             display = '{}'.format(
                 branch.name.replace(
                     self._cr.flowhub.prefix.feature,
@@ -807,7 +888,7 @@ class Engine(object):
         return_branch = self._repo.head.reference
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
-            # but only if it's a feature branch.
+            # but only if it's a hotfix branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.hotfix not in name:
                 print ("please provide a hotfix name, or switch to "
@@ -844,7 +925,7 @@ class Engine(object):
         # cut off any issue numbers that may be there
         default_tag = name[len('-'.join(issue_numbers)) + 1:] if issue_numbers else name
         tag_label = raw_input("Tag Label [{}]: ".format(default_tag)) or default_tag
-        tag_message = raw_input("Message for this tag:")
+        tag_message = raw_input("Message for this tag: ")
         self._repo.create_tag(
             path=tag_label,
             ref=self.master,
@@ -948,3 +1029,43 @@ class Engine(object):
                 pr.issue_url,
             )
         ]
+
+    def _open_issue(self, title=None, labels=None, create_branch=False, summary=None):
+        if title is None:
+            title = raw_input("Title for this issue: ")
+        else:
+            print "Title for this issue: ", title
+
+        if labels is None:
+            labels = []
+
+        gh_labels = [l for l in self._gh_repo.get_labels() if l.name in labels]
+
+        issue = self._gh_repo.create_issue(
+            title=title,
+            body=raw_input("Description (remember, you can use GitHub markdown):\n") or "No description provided.",
+            labels=gh_labels,
+        )
+
+        summary += [
+            'Opened issue #{}: {}{}\n'
+            '\turl: {}'.format(
+                issue.number,
+                title,
+                '\n\t[{}]'.format(' '.join([l.name for l in gh_labels])) if gh_labels else '',
+                issue.url,
+            )
+        ]
+
+        if create_branch:
+            feature_name = "{}-{}".format(
+                issue.number,
+                title.replace(' ', '-').lower(),
+            )
+            self._create_feature(
+                name=feature_name,
+                create_tracking_branch=False,
+                summary=summary,
+            )
+
+    open_issue = with_summary(_open_issue)

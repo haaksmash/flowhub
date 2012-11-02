@@ -1,10 +1,30 @@
 #!/usr/bin/env python
+"""
+Copyright (C) 2012 Haak Saxberg
+
+This file is part of Flowhub, a command-line tool to enable various
+Git-based workflows that interacts with GitHub.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 3
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+"""
 import argparse
 
 from engine import Engine
 
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 
 
 def handle_init_call(args, engine):
@@ -123,6 +143,18 @@ def handle_cleanup_call(args, engine):
         print "No targets specified for cleanup."
 
 
+def handle_issue_call(args, engine):
+    if args.verbosity > 2:
+        print "handling issue call"
+
+    if args.action == 'start':
+        engine.open_issue(
+            title=args.title,
+            labels=args.labels.split(',') if args.labels else None,
+            create_branch=args.create_branch,
+        )
+
+
 def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
@@ -142,6 +174,8 @@ def run():
         help="do release-related things",)
     cleanup = subparsers.add_parser('cleanup',
         help="do repository-cleanup related things",)
+    issue = subparsers.add_parser('issue',
+        help="do issue-related things",)
 
     #
     # Features
@@ -240,6 +274,19 @@ def run():
     cleanup.add_argument('-a', '--all', action='store_true', default=False,
         help='Shorthand for using the flag -urt')
 
+    #
+    # Issues
+    #
+    issue_subs = issue.add_subparsers(dest='action')
+    istart = issue_subs.add_parser('start',
+        help="Open a new issue on github")
+    istart.add_argument('title', nargs='?', default=None, action='store',
+        help="Title of the created issue")
+    istart.add_argument('--labels', '-l', default=None, action='store',
+        help='Comma-separated list of labels to apply to this bug.\nLabels that don\'t exist won\'t be applied.')
+    istart.add_argument('--create-branch', '-b', default=False, action='store_true',
+        help="Create a feature branch for this issue.")
+
     args = parser.parse_args()
     if args.verbosity > 2:
         print "Args: ", args
@@ -260,6 +307,9 @@ def run():
 
     elif args.subparser == 'init':
         handle_init_call(args, e)
+
+    elif args.subparser == 'issue':
+        handle_issue_call(args, e)
 
     else:
         raise RuntimeError("Unrecognized command: {}".format(args.subparser))
