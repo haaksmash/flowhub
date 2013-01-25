@@ -12,7 +12,23 @@ a slightly different way gives you a translation of
 
 You can also get a hybrid of the two, if that floats your boat.
 
-Flowhub has no meaning outside of a Git repository.
+Outside of a Git repository, Flowhub is super-confused and refuses to work. As
+far as I know, Flowhub does not integrate with any other Git clients. If it does,
+that's a happy accident: Flowhub is designed as a command-line tool.
+
+How do I get Flowhub?
+---------------------------------
+
+Great question! The easiest way is probably using the overworked and
+under-appcreciated `pip <http://www.pip-installer.org/en/latest/>`_, which
+is a very friendly way to install python packages in general.
+
+Once you have pip on your system, simply run ``pip install flowhub``, and that
+should be that. If you prefer the bleeding edge of Flowhub development, you can
+get that too: simply clone this repository, checkout the ``develop``
+branch, and run ``setup.py install`` (be ye warned, however: ``develop`` is not
+guaranteed to be stable). There are very few dependencies -- check out the setup
+script to see what they are.
 
 After installing,
 you'll have access to the ``flowhub`` command:
@@ -25,6 +41,10 @@ you'll have access to the ``flowhub`` command:
 
 
 See ``flowhub -h`` and its descendants for more information.
+
+Flowhub definitely works on OSX and probably works on Linux (last I checked, it
+works on Ubuntu), and might or might not work on Windows (a new frontier!).
+
 
 
 What Can Flowhub Do?
