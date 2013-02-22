@@ -55,16 +55,28 @@ class Engine(object):
                 return
 
             try:
-                self._gh_repo = self._gh.get_user().get_repo(self._cr.flowhub.structure.name)
+                self._gh_repo = self._gh.get_user().get_repo(
+                    self._cr.flowhub.structure.name
+                )
             except GithubException:
                 try:
-                    self._get_repo = [x for x in self._gh.get_user().get_repos() if x.name == self._cr.flowhub.structure.name][0]
+                    self._get_repo = [
+                        x for x in self._gh.get_user().get_repos()
+                            if x.name == self._cr.flowhub.structure.name
+                    ][0]
                 except IndexError:
-                    raise ImproperlyConfigured("No repo with given name: {}".format(self._cr.flowhub.structure.name))
+                    raise ImproperlyConfigured(
+                        "No repo with given name: {}".format(
+                            self._cr.flowhub.structure.name,
+                        )
+                    )
 
             if self._gh.rate_limiting[0] < 100:
                 warnings.warn("You are close to exceeding your GitHub access "
-                    "rate; {} left out of {} initially".format(*self._gh.rate_limiting))
+                    "rate; {} left out of {} initially".format(
+                        *self._gh.rate_limiting
+                    )
+                )
         else:
             if self.__debug > 0:
                 print "Skipping auth - GitHub accesses will fail."
@@ -121,7 +133,10 @@ class Engine(object):
         if self.__debug > 2:
             print "Token generated: ", token
         # set the token globally, rather than on the repo level.
-        authing = subprocess.check_output('git config --global --add flowhub.auth.token {}'.format(token), shell=True).strip()
+        authing = subprocess.check_output(
+            'git config --global --add flowhub.auth.token {}'.format(token),
+            shell=True,
+        ).strip()
         if self.__debug > 2:
             print "result of config set:", authing
 
@@ -133,7 +148,9 @@ class Engine(object):
         if not hasattr(self._cw, 'flowhub') or not hasattr(self._cw.flowhub, 'structure'):
             self._cw.add_section('flowhub "structure"')
 
-        self._cw.flowhub.structure.name = raw_input("Name of the GitHub repository for this flowhub: ")
+        self._cw.flowhub.structure.name = raw_input(
+            "Name of the GitHub repository for this flowhub: "
+        )
 
         self._cw.flowhub.structure.origin = raw_input("Name of your github remote [origin]: ") or 'origin'
         if not self._ensure_remote_exists(self._cw.flowhub.structure.origin):
@@ -186,13 +203,17 @@ class Engine(object):
     def develop(self):
         if self.__debug > 3:
             print "finding develop branch {}".format(self._cr.flowhub.structure.develop)
-        return [x for x in self._repo.heads if x.name == self._cr.flowhub.structure.develop][0]
+        return [x for x in self._repo.heads
+            if x.name == self._cr.flowhub.structure.develop
+        ][0]
 
     @property
     def master(self):
         if self.__debug > 3:
             print "finding master branch {}".format(self._cr.flowhub.structure.master)
-        return [x for x in self._repo.heads if x.name == self._cr.flowhub.structure.master][0]
+        return [x for x in self._repo.heads
+            if x.name == self._cr.flowhub.structure.master
+        ][0]
 
     @property
     def origin(self):
@@ -245,7 +266,10 @@ class Engine(object):
         if self.__debug > 2:
             print "checking for repo-ness"
         try:
-            repo_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).strip()
+            repo_dir = subprocess.check_output(
+                "git rev-parse --show-toplevel",
+                shell=True,
+            ).strip()
         except subprocess.CalledProcessError:
             print "You don't appear to be in a git repository."
             return False
@@ -534,8 +558,11 @@ class Engine(object):
         else:
             head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
-        prs = [x for x in self.gh_canon.get_pulls('open') if x.head.label == head \
-                    or x.head.label == "{}:{}".format(self._gh.get_user().login, head)]
+        prs = [
+            x for x in self.gh_canon.get_pulls('open')
+                if x.head.label == head
+                or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
+        ]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
             summary += [
@@ -555,7 +582,10 @@ class Engine(object):
         ]
 
     def list_features(self):
-        features = [b for b in self._repo.branches if b.name.startswith(self._cr.flowhub.prefix.feature)]
+        features = [
+            b for b in self._repo.branches
+                if b.name.startswith(self._cr.flowhub.prefix.feature)
+        ]
         if not features:
             print "There are no feature branches."
             return
@@ -583,7 +613,10 @@ class Engine(object):
             print "Please provide a release name."
             return
 
-        if any([x for x in self._repo.branches if x.name.startswith(self._cr.flowhub.prefix.release)]):
+        if any([
+            x for x in self._repo.branches
+                if x.name.startswith(self._cr.flowhub.prefix.release)
+        ]):
             print "You already have a release in the works - please finish that one."
             return
 
@@ -710,7 +743,11 @@ class Engine(object):
         self.canon.push()
         self.canon.push(tags=True)
         summary += [
-            "{}, {}, and tags have been pushed to {}".format(self.master.name, self.develop.name, self.canon.name),
+            "{}, {}, and tags have been pushed to {}".format(
+                self.master.name,
+                self.develop.name,
+                self.canon.name
+            ),
         ]
 
         if delete_release_branch:
@@ -842,7 +879,10 @@ class Engine(object):
             print "Please provide a release name."
             return
 
-        if any([x for x in self._repo.branches if x.name.startswith(self._cr.flowhub.prefix.hotfix)]):
+        if any([
+            x for x in self._repo.branches
+                if x.name.startswith(self._cr.flowhub.prefix.hotfix)
+        ]):
             print (
                 "You already have a hotfix in the works - please finish that one."
             )
