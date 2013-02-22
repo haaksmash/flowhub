@@ -108,7 +108,7 @@ class Engine(object):
 
             try:
                 auth = self._gh.get_user().create_authorization(
-                    'user,repo,gist',
+                    ['user', 'repo', 'gist'],
                     'Flowhub Client',
                 )
                 break
