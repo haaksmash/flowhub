@@ -28,7 +28,7 @@ setup(
     name="flowhub",
     version='0.4.6',
     description="Git-flow adapted for GitHub",
-    long_description=open("README.txt").read(),
+    long_description=open("README.rst").read(),
     author="Haak Saxberg",
     author_email="haak.erling@gmail.com",
     url="http://github.com/haaksmash/flowhub",
