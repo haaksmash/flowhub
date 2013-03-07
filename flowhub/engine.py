@@ -53,6 +53,7 @@ class Engine(object):
 
         self._gh = None
 
+        self.offline = not skip_auth
         if not skip_auth:
             if self.__debug > 0:
                 print "Authorizing engine..."
@@ -259,7 +260,7 @@ class Engine(object):
     def release(self):
         # official version releases are named release/#.#.#
         releases = [x for x in self._repo.branches if x.name.startswith(
-                self._cr.flowhub.prefix.release,
+            self._cr.flowhub.prefix.release,
         )]
 
         if releases:
@@ -271,9 +272,8 @@ class Engine(object):
     def hotfix(self):
         # official version hotfixes are named release/#.#.#
         hotfixes = [x for x in self._repo.branches if x.name.startswith(
-                self._cr.flowhub.prefix.hotfix,
-            ) and re.match('\d.\d.\d', x.name.split('/')[-1])
-        ]
+            self._cr.flowhub.prefix.hotfix,
+        )]
 
         if hotfixes:
             return hotfixes[0]
@@ -379,7 +379,7 @@ class Engine(object):
             )
         ]
 
-        if create_tracking_branch:
+        if not self.offline and create_tracking_branch:
             if self.__debug > 0:
                 print "Adding a tracking branch to your GitHub repo"
             self._repo.git.push(

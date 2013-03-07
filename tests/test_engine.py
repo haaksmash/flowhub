@@ -50,7 +50,7 @@ class NotARepoSetupTestCase(unittest.TestCase):
                 Engine(skip_auth=True)
 
 
-class OfflineSetupTestCase(unittest.TestCase):
+class OfflineTestCase(unittest.TestCase):
     def setUp(self):
         # create new repository
         print "Creating new test repo..."
@@ -77,6 +77,9 @@ class OfflineSetupTestCase(unittest.TestCase):
             hotfix=kwargs.get("hotfix", id_generator()),
         )
 
+
+class OfflineSetupTestCase(OfflineTestCase):
+
     def test_setup_repo_structure(self):
         args = {
             "origin": id_generator(),
@@ -99,7 +102,7 @@ class OfflineSetupTestCase(unittest.TestCase):
         self.assertEqual(self.engine._cr.flowhub.prefix.hotfix, args["hotfix"])
 
 
-class OfflineBranchFindingTestCase(unittest.TestCase):
+class OfflineBranchFindingTestCase(OfflineTestCase):
     def setUp(self):
         # create new repository
         print "Creating new test repo..."
@@ -125,20 +128,6 @@ class OfflineBranchFindingTestCase(unittest.TestCase):
         os.chdir(TEST_REPO)
         self.engine = Engine(skip_auth=True, debug=4)
         self._do_setup_things(**self.repo_structure)
-
-    def _do_setup_things(self, e=None, **kwargs):
-        if e is None:
-            e = self.engine
-        e.setup_repository_structure(
-            name=REPO_NAME,
-            origin=kwargs.get("origin", id_generator()),
-            canon=kwargs.get("canon", id_generator()),
-            master=kwargs.get("master", id_generator()),
-            develop=kwargs.get("develop", id_generator()),
-            feature=kwargs.get("feature", id_generator()),
-            release=kwargs.get("release", id_generator()),
-            hotfix=kwargs.get("hotfix", id_generator()),
-        )
 
     def tearDown(self):
         shutil.rmtree(TEST_REPO)
@@ -190,5 +179,8 @@ class OfflineBranchFindingTestCase(unittest.TestCase):
         self.assertEqual(self.engine.release, release)
 
     def test_can_find_hotfix(self):
-        hotfix = self.repo.create_head('/'.join([self.repo_structure['hotfix'], "test_hotfix"]))
+        hotfix = self.repo.create_head('/'.join([self.repo_structure['hotfix'], "0.0.0"]))
         self.assertEqual(self.engine.hotfix, hotfix)
+
+
+class OfflineFeatureTestCase(unittest.TestCase): pass
