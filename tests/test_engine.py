@@ -95,8 +95,14 @@ class OfflineSetupTestCase(OfflineTestCase):
         # we care about the config reader.
         self.assertEqual(self.engine._cr.flowhub.structure.master, args["master"])
         self.assertEqual(self.engine._cr.flowhub.structure.develop, args["develop"])
+
+        # these branches should have been created
+        self.engine.master
+        self.engine.develop
+
         self.assertEqual(self.engine._cr.flowhub.structure.origin, args["origin"])
         self.assertEqual(self.engine._cr.flowhub.structure.canon, args["canon"])
+
         self.assertEqual(self.engine._cr.flowhub.prefix.feature, args["feature"])
         self.assertEqual(self.engine._cr.flowhub.prefix.release, args["release"])
         self.assertEqual(self.engine._cr.flowhub.prefix.hotfix, args["hotfix"])
@@ -119,9 +125,6 @@ class OfflineBranchFindingTestCase(OfflineTestCase):
             "hotfix": id_generator(),
         }
 
-        # Ensure repo actually has the things we claim it has
-        self.repo.create_head(self.repo_structure['master'])
-        self.repo.create_head(self.repo_structure['develop'])
         self.repo.create_remote(self.repo_structure['origin'], "None")
         self.repo.create_remote(self.repo_structure['canon'], "None")
 
@@ -179,8 +182,9 @@ class OfflineBranchFindingTestCase(OfflineTestCase):
         self.assertEqual(self.engine.release, release)
 
     def test_can_find_hotfix(self):
-        hotfix = self.repo.create_head('/'.join([self.repo_structure['hotfix'], "0.0.0"]))
+        hotfix = self.repo.create_head('/'.join([self.repo_structure['hotfix'], "test_hotfix"]))
         self.assertEqual(self.engine.hotfix, hotfix)
 
 
-class OfflineFeatureTestCase(unittest.TestCase): pass
+class OfflineFeatureTestCase(OfflineTestCase): pass
+

@@ -176,14 +176,14 @@ class Engine(object):
         self._cw.flowhub.structure.origin = origin
         self._cw.flowhub.structure.canon = canon
         self._cw.flowhub.structure.master = master
-        if not self._branch_exists(self._cw.flowhub.structure.master):
-            print "\tCreating branch {}".format(self._cw.flowhub.structure.master)
-            self._repo.create_head(self._cw.flowhub.structure.master)
+        if not self._branch_exists(master):
+            print "\tCreating branch {}".format(master)
+            self._repo.create_head(master)
 
         self._cw.flowhub.structure.develop = develop
-        if not self._branch_exists(self._cw.flowhub.structure.master):
-            print "\tCreating branch {}".format(self._cw.flowhub.structure.develop)
-            self._repo.create_head(self._cw.flowhub.structure.master)
+        if not self._branch_exists(develop):
+            print "\tCreating branch {}".format(develop)
+            self._repo.create_head(develop)
 
         if not hasattr(self._cr.flowhub, 'prefix'):
             self._cw.add_section('flowhub "prefix"')
