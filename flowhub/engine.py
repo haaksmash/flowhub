@@ -32,6 +32,12 @@ from configurator import Configurator, ImproperlyConfigured
 from decorators import with_summary
 
 
+class NoSuchObject(Exception): pass
+
+class NoSuchBranch(NoSuchObject): pass
+class NoSuchRemote(NoSuchObject): pass
+
+
 class Engine(object):
     def __init__(self, debug=0, skip_auth=False):
         self.__debug = debug
@@ -101,9 +107,13 @@ class Engine(object):
 
         if self.__debug > 2:
             print "Checking for repo setup"
-        if not hasattr(self._cr.flowhub, 'structure') or not hasattr(self._cr.flowhub.structure, 'name'):
+        if (
+            not hasattr(self._cr.flowhub, 'structure')
+            or not hasattr(self._cr.flowhub.structure, 'name')
+        ):
             print (
-                "This repository is not yet Flowhub-enabled. Let's take care of that now."
+                "This repository is not yet Flowhub-enabled. " +
+                "Let's take care of that now."
             )
             self.setup_repository_structure()
             print '\n'.join((
@@ -142,90 +152,98 @@ class Engine(object):
 
         return True
 
-    def setup_repository_structure(self):
+    def setup_repository_structure(
+        self,
+        name,
+        origin,
+        canon,
+        master,
+        develop,
+        feature,
+        release,
+        hotfix,
+    ):
         if self.__debug > 2:
             print "Begin repo setup"
         if not hasattr(self._cw, 'flowhub') or not hasattr(self._cw.flowhub, 'structure'):
+            if self.__debug > 2:
+                print "creating flowhub structure section"
             self._cw.add_section('flowhub "structure"')
 
-        self._cw.flowhub.structure.name = raw_input(
-            "Name of the GitHub repository for this flowhub: "
-        )
+        self._cw.flowhub.structure.name = name
 
-        self._cw.flowhub.structure.origin = raw_input("Name of your github remote [origin]: ") or 'origin'
-        if not self._ensure_remote_exists(self._cw.flowhub.structure.origin):
-            print "Whoops! That remote doesn't exist."
-            remote_url = raw_input("Remote url: ")
-            self._repo.create_remote(
-                self._cw.flowhub.structure.origin,
-                remote_url,
-            )
-        self._cw.flowhub.structure.canon = raw_input('Name of the organization remote [canon]: ') or 'canon'
-        if not self._ensure_remote_exists(self._cw.flowhub.structure.canon):
-            print "Whoops! That remote doesn't exist."
-            remote_url = raw_input("Remote url: ")
-            self._repo.create_remote(
-                self._cw.flowhub.structure.canon,
-                remote_url,
-            )
-
-        self._cw.flowhub.structure.master = raw_input("Name of the stable branch [master]: ") or 'master'
-        if not self._ensure_branch_exists(self._cw.flowhub.structure.master):
+        self._cw.flowhub.structure.origin = origin
+        self._cw.flowhub.structure.canon = canon
+        self._cw.flowhub.structure.master = master
+        if not self._branch_exists(self._cw.flowhub.structure.master):
             print "\tCreating branch {}".format(self._cw.flowhub.structure.master)
             self._repo.create_head(self._cw.flowhub.structure.master)
 
-        self._cw.flowhub.structure.develop = raw_input("Name of the development branch [develop]: ") or 'develop'
-        if not self._ensure_branch_exists(self._cw.flowhub.structure.master):
+        self._cw.flowhub.structure.develop = develop
+        if not self._branch_exists(self._cw.flowhub.structure.master):
             print "\tCreating branch {}".format(self._cw.flowhub.structure.develop)
             self._repo.create_head(self._cw.flowhub.structure.master)
 
         if not hasattr(self._cr.flowhub, 'prefix'):
             self._cw.add_section('flowhub "prefix"')
 
-        self._cw.flowhub.prefix.feature = raw_input("Prefix for feature branches [feature/]: ") or 'feature/'
-        self._cw.flowhub.prefix.release = raw_input("Prefix for release branches [release/]: ") or "release/"
-        self._cw.flowhub.prefix.hotfix = raw_input("Prefix for hotfix branches [hotfix/]: ") or "hotfix/"
+        self._cw.flowhub.prefix.feature = feature
+        self._cw.flowhub.prefix.release = release
+        self._cw.flowhub.prefix.hotfix = hotfix
 
         # Refresh the read-only reader.
         self._cr = Configurator(self._repo.config_reader())
 
-    def _ensure_branch_exists(self, branch_name):
+    def _branch_exists(self, branch_name):
         if self.__debug > 2:
             print "Checking for existence of branch {}".format(branch_name)
         return getattr(self._repo.heads, branch_name, None) is not None
 
-    def _ensure_remote_exists(self, repo_name):
+    def _remote_exists(self, repo_name):
         if self.__debug > 2:
             print "Checking for existence of remote {}".format(repo_name)
         return getattr(self._repo.remotes, repo_name, None) is not None
 
+    def __get_branch_by_name(self, name):
+        try:
+            return getattr(self._repo.heads, name)
+        except AttributeError:
+            raise NoSuchBranch(name)
+
     @property
     def develop(self):
+        develop_name = self._cr.flowhub.structure.develop
         if self.__debug > 3:
-            print "finding develop branch {}".format(self._cr.flowhub.structure.develop)
-        return [x for x in self._repo.heads
-            if x.name == self._cr.flowhub.structure.develop
-        ][0]
+            print "finding develop branch {}".format(develop_name)
+        return self.__get_branch_by_name(develop_name)
 
     @property
     def master(self):
+        master_name = self._cr.flowhub.structure.master
         if self.__debug > 3:
-            print "finding master branch {}".format(self._cr.flowhub.structure.master)
-        return [x for x in self._repo.heads
-            if x.name == self._cr.flowhub.structure.master
-        ][0]
+            print "finding master branch {}".format(master_name)
+        return self.__get_branch_by_name(master_name)
+
+    def __get_remote_by_name(self, name):
+        try:
+            return getattr(self._repo.remotes, name)
+        except AttributeError:
+            raise NoSuchRemote(name)
 
     @property
     def origin(self):
+        origin_name = self._cr.flowhub.structure.origin
         if self.__debug > 3:
-            print "finding origin repo {}".format(self._cr.flowhub.structure.origin)
-        return self._repo.remote(self._cr.flowhub.structure.origin)
+            print "finding origin repo {}".format(origin_name)
+        return self.__get_remote_by_name(origin_name)
 
     @property
     def canon(self):
+        canon_name = self._cr.flowhub.structure.canon
+        print "canon name", canon_name
         if self.__debug > 3:
-            print "finding canon repo {}".format(self._cr.flowhub.structure.canon)
-        return self._repo.remote(self._cr.flowhub.structure.canon)
+            print "finding canon repo {}".format(canon_name)
+        return self.__get_remote_by_name(canon_name)
 
     @property
     def gh_canon(self):
@@ -242,7 +260,7 @@ class Engine(object):
         # official version releases are named release/#.#.#
         releases = [x for x in self._repo.branches if x.name.startswith(
                 self._cr.flowhub.prefix.release,
-            )]
+        )]
 
         if releases:
             return releases[0]
@@ -254,7 +272,8 @@ class Engine(object):
         # official version hotfixes are named release/#.#.#
         hotfixes = [x for x in self._repo.branches if x.name.startswith(
                 self._cr.flowhub.prefix.hotfix,
-            ) and re.match('\d.\d.\d', x.name.split('/')[-1])]
+            ) and re.match('\d.\d.\d', x.name.split('/')[-1])
+        ]
 
         if hotfixes:
             return hotfixes[0]
@@ -271,8 +290,7 @@ class Engine(object):
                 shell=True,
             ).strip()
         except subprocess.CalledProcessError:
-            print "You don't appear to be in a git repository."
-            return False
+            raise git.exc.InvalidGitRepositoryError("Not a valid git repository")
 
         if self.__debug > 2:
             print "repo directory: ", repo_dir
@@ -431,8 +449,10 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.feature not in name:
-                print ("Please provide a feature name, or switch to "
-                    "the feature branch you want to mark as accepted.")
+                print (
+                    "Please provide a feature name, or switch to "
+                    "the feature branch you want to mark as accepted."
+                )
                 return
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
@@ -482,8 +502,10 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.feature not in name:
-                print ("Please provide a feature name, or switch to "
-                    "the feature branch you want to abandon.")
+                print (
+                    "Please provide a feature name, or switch to "
+                    "the feature branch you want to abandon."
+                )
                 return
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
@@ -533,8 +555,10 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.feature not in name:
-                print ("please provide a feature name, or switch to "
-                    "the feature branch you want to publish.")
+                print (
+                    "Please provide a feature name, or switch to "
+                    "the feature branch you want to publish."
+                )
                 return
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
@@ -689,8 +713,10 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.release not in name:
-                print ("please provide a release name, or switch to "
-                    "the release branch you want to publish.")
+                print (
+                    "Please provide a release name, or switch to "
+                    "the release branch you want to publish."
+                )
                 return
 
             name = name.replace(self._cr.flowhub.prefix.release, '')

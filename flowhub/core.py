@@ -27,12 +27,61 @@ from engine import Engine
 __version__ = "0.4.6"
 
 
-def handle_init_call(args, engine):
+def handle_init_call(args, engine, input_func=raw_input):
     if args.verbosity > 2:
         print "handling init"
 
     # doesn't do anything but setup.
     # Setup was already done, during engine construction.
+    if args.verbosity > 2:
+        print "Begin repo setup"
+
+    name = input_func(
+        "Name of the GitHub repository for this flowhub: "
+    )
+
+    origin = input_func("Name of your github remote [origin]: ") or 'origin'
+    # if not engine._remote_exists(origin):
+    #     print "Whoops! That remote doesn't exist."
+    #     remote_url = input_func("Remote url: ")
+    #     engine._repo.create_remote(
+    #         origin,
+    #         remote_url,
+    #     )
+    canon = input_func('Name of the organization remote [canon]: ') or 'canon'
+    # if not engine._remote_exists(canon):
+    #     print "Whoops! That remote doesn't exist."
+    #     remote_url = input_func("Remote url: ")
+    #     self._repo.create_remote(
+    #         canon,
+    #         remote_url,
+    #     )
+
+    master = input_func("Name of the stable branch [master]: ") or 'master'
+    if not engine._branch_exists(master):
+        print "\tCreating branch {}".format(master)
+        engine._repo.create_head(master)
+
+    develop = input_func("Name of the development branch [develop]: ") or 'develop'
+    if not engine._branch_exists(master):
+        print "\tCreating branch {}".format(develop)
+        engine._repo.create_head(master)
+
+
+    feature = input_func("Prefix for feature branches [feature/]: ") or 'feature/'
+    release = input_func("Prefix for release branches [release/]: ") or "release/"
+    hotfix = input_func("Prefix for hotfix branches [hotfix/]: ") or "hotfix/"
+
+    engine.setup_repository_structure(
+        name,
+        origin,
+        canon,
+        master,
+        develop,
+        feature,
+        release,
+        hotfix,
+    )
 
 
 def handle_feature_call(args, engine):
