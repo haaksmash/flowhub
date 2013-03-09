@@ -642,6 +642,8 @@ class Engine(object):
 
             print display
 
+        return features
+
     @with_summary
     def start_release(self, name, summary=None):
         # checkout develop

@@ -237,6 +237,24 @@ class OfflineFeatureTestCase(OfflineTestCase, RepositoryBaseTestCase):
 
         self.assertOnBranch(self.repo_structure['feature'] + FEATURE_NAME)
 
+    def test_list_features(self):
+        features = []
+        for i in range(5):
+            FEATURE_NAME = id_generator()
+            self.engine._create_feature(FEATURE_NAME)
+            features.append(self.repo_structure['feature'] + FEATURE_NAME)
+
+        for i in range(5):
+            self.repo.create_head(
+                id_generator(),
+                commit=self.engine.develop,
+            )
+
+        listed_features = self.engine.list_features()
+
+        for feature in listed_features:
+            self.assertIn(feature.name, features)
+
 
 class OnlineBranchFindingTestCase(object):
 
