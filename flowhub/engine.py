@@ -53,7 +53,7 @@ class Engine(object):
 
         self._gh = None
 
-        self.offline = not skip_auth
+        self.offline = skip_auth
         if not skip_auth:
             if self.__debug > 0:
                 print "Authorizing engine..."
@@ -356,7 +356,10 @@ class Engine(object):
     def _create_feature(self, name=None, create_tracking_branch=True, summary=None):
         if name is None:
             print "Please provide a feature name."
-            return
+            return False
+
+        if summary is None:
+            summary = []
 
         if self.__debug > 0:
             print "Creating new feature branch..."
@@ -402,6 +405,8 @@ class Engine(object):
             "Checked out branch {}".format(branch_name),
         ]
 
+        return True
+
     def work_feature(self, name=None, issue=None):
         """Simply checks out the feature branch for the named feature."""
         if name is None and issue is None:
@@ -441,8 +446,10 @@ class Engine(object):
 
     create_feature = with_summary(_create_feature)
 
-    @with_summary
-    def accept_feature(self, name=None, summary=None):
+    def _accept_feature(self, name=None, summary=None):
+        if summary is None:
+            summary = []
+
         return_branch = self._repo.head.reference
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
@@ -494,8 +501,11 @@ class Engine(object):
             "Checked out branch {}".format(return_branch.name),
         ]
 
-    @with_summary
-    def abandon_feature(self, name=None, summary=None):
+    accept_feature = with_summary(_accept_feature)
+
+    def _abandon_feature(self, name=None, summary=None):
+        if summary is None:
+            summary = []
         return_branch = self._repo.head.reference
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
@@ -548,8 +558,11 @@ class Engine(object):
             ),
         ]
 
-    @with_summary
-    def publish_feature(self, name, summary=None):
+    abandon_feature = with_summary(_abandon_feature)
+
+    def _publish_feature(self, name, summary=None):
+        if summary is None:
+            summary = []
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
@@ -568,9 +581,9 @@ class Engine(object):
             name,
         )
         self._repo.git.push(
-                self._cr.flowhub.structure.origin,
-                branch_name,
-                set_upstream=True,
+            self._cr.flowhub.structure.origin,
+            branch_name,
+            set_upstream=True,
         )
         summary += [
             "Updated {}/{}".format(self.origin.name, branch_name)
@@ -584,8 +597,8 @@ class Engine(object):
 
         prs = [
             x for x in self.gh_canon.get_pulls('open')
-                if x.head.label == head
-                or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
+            if x.head.label == head
+            or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
         ]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
@@ -604,11 +617,12 @@ class Engine(object):
                 pr.issue_url,
             )
         ]
+    publish_feature = with_summary(_publish_feature)
 
     def list_features(self):
         features = [
             b for b in self._repo.branches
-                if b.name.startswith(self._cr.flowhub.prefix.feature)
+            if b.name.startswith(self._cr.flowhub.prefix.feature)
         ]
         if not features:
             print "There are no feature branches."
@@ -842,9 +856,10 @@ class Engine(object):
         release_prefix = self._cr.flowhub.prefix.release
 
         for branch in self._repo.branches:
-            if ('u' in targets and branch.name.startswith(self._cr.flowhub.prefix.feature))\
-                or ('r' in targets and branch.name.startswith(self._cr.flowhub.prefix.release))\
-                or ('t' in targets and branch.name.startswith(self._cr.flowhub.prefix.hotfix)):
+            if (('u' in targets and branch.name.startswith(self._cr.flowhub.prefix.feature))
+                or ('r' in targets and branch.name.startswith(self._cr.flowhub.prefix.release))
+                or ('t' in targets and branch.name.startswith(self._cr.flowhub.prefix.hotfix))
+            ):
                 # Feature branches get removed if they're fully merged in to something else.
                 # NOTE: this will delete branch references that have no commits in them.
                 if branch == current_branch:
