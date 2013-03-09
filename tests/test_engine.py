@@ -25,6 +25,7 @@ import mock
 import os
 import shutil
 import subprocess
+import string
 import unittest
 
 from tests import (
@@ -59,9 +60,12 @@ class OfflineTestCase(unittest.TestCase):
         self.repo.index.commit("Initial commit")
 
         os.chdir(TEST_REPO)
-        self.engine = Engine(skip_auth=True, debug=3)
+        self.engine = Engine(skip_auth=True, debug=0)
 
     def tearDown(self):
+
+        # ensure no web-talking functions were called:
+
         shutil.rmtree(TEST_REPO)
         print "tearing down test repo"
 
@@ -129,14 +133,14 @@ class OfflineBranchFindingTestCase(OfflineTestCase):
         self.repo.create_remote(self.repo_structure['canon'], "None")
 
         os.chdir(TEST_REPO)
-        self.engine = Engine(skip_auth=True, debug=4)
+        self.engine = Engine(skip_auth=True, debug=1)
         self._do_setup_things(**self.repo_structure)
 
-    def tearDown(self):
-        shutil.rmtree(TEST_REPO)
-
     def test_develop_is_develop(self):
-        self.assertEqual(self.engine.develop, getattr(self.repo.heads, self.repo_structure['develop']))
+        self.assertEqual(
+            self.engine.develop,
+            getattr(self.repo.heads, self.repo_structure['develop'])
+        )
 
     def test_get_develop_no_develop(self):
         self.engine._cr.flowhub.structure.develop = id_generator()
@@ -144,12 +148,97 @@ class OfflineBranchFindingTestCase(OfflineTestCase):
             self.engine.develop
 
     def test_master_is_master(self):
-        self.assertEqual(self.engine.master, getattr(self.repo.heads, self.repo_structure['master']))
+        self.assertEqual(
+            self.engine.master,
+            getattr(self.repo.heads, self.repo_structure['master'])
+        )
 
     def test_get_master_no_master(self):
         self.engine._cr.flowhub.structure.master = id_generator()
         with self.assertRaises(NoSuchBranch):
             self.engine.master
+
+    def test_branch_exists(self):
+        self.assertTrue(self.engine._branch_exists(self.repo_structure['master']))
+        self.assertFalse(self.engine._branch_exists(id_generator()))
+
+    def test_can_find_release(self):
+        release = self.repo.create_head(
+            '/'.join([self.repo_structure['release'], "test_release"])
+        )
+        self.assertEqual(self.engine.release, release)
+
+    def test_can_find_hotfix(self):
+        hotfix = self.repo.create_head('/'.join(
+            [self.repo_structure['hotfix'], "test_hotfix"])
+        )
+        self.assertEqual(self.engine.hotfix, hotfix)
+
+
+class RepositoryBaseTestCase(unittest.TestCase):
+
+    def assertHasBranch(self, branchname):
+        self.assertTrue(hasattr(self.repo.heads, branchname))
+
+    def assertOnBranch(self, branchname):
+        self.assertEqual(self.repo.head.reference, getattr(self.repo.heads, branchname))
+
+
+class OfflineFeatureTestCase(OfflineTestCase, RepositoryBaseTestCase):
+    def setUp(self):
+        super(OfflineFeatureTestCase, self).setUp()
+
+        self.repo.index.commit("Initial commit")
+        self.repo_structure = {
+            "origin": id_generator(),
+            "canon": id_generator(),
+            "master": id_generator(),
+            "develop": id_generator(),
+            "feature": id_generator(),
+            "release": id_generator(),
+            "hotfix": id_generator(),
+        }
+
+        self._do_setup_things(**self.repo_structure)
+
+    def test_create_feature_no_name(self):
+        brances_before = list(self.repo.heads)
+
+        self.assertFalse(self.engine._create_feature())
+
+        self.assertEqual(list(self.repo.heads), brances_before)
+
+    def test_create_feature(self):
+        FEATURE_NAME = id_generator()
+        expected_branch_name = "{}{}".format(self.repo_structure['feature'], FEATURE_NAME)
+
+        self.assertTrue(self.engine._create_feature(FEATURE_NAME))
+
+        # should have created and checked out the new feature branch.
+        self.assertHasBranch(expected_branch_name)
+        self.assertOnBranch(expected_branch_name)
+
+    def test_work_feature_by_name(self):
+        FEATURE_NAME = id_generator()
+        self.engine._create_feature(FEATURE_NAME)
+        getattr(self.repo.branches, self.repo_structure['develop']).checkout()
+
+        self.engine.work_feature(name=FEATURE_NAME)
+
+        self.assertOnBranch(self.repo_structure['feature'] + FEATURE_NAME)
+
+    def test_work_feature_by_issue(self):
+        ISSUE_NUM = id_generator(chars=string.digits)
+        FEATURE_NAME = ISSUE_NUM + "-" + id_generator()
+        self.engine._create_feature(FEATURE_NAME)
+        getattr(self.repo.branches, self.repo_structure['develop']).checkout()
+
+        self.engine.work_feature(issue=ISSUE_NUM)
+
+        self.assertOnBranch(self.repo_structure['feature'] + FEATURE_NAME)
+
+
+class OnlineBranchFindingTestCase(object):
 
     def test_origin_is_origin(self):
         print self.repo.remotes
@@ -169,22 +258,6 @@ class OfflineBranchFindingTestCase(OfflineTestCase):
         with self.assertRaises(NoSuchRemote):
             self.engine.canon
 
-    def test_branch_exists(self):
-        self.assertTrue(self.engine._branch_exists(self.repo_structure['master']))
-        self.assertFalse(self.engine._branch_exists(id_generator()))
-
     def test_remote_exists(self):
         self.assertTrue(self.engine._remote_exists(self.repo_structure['canon']))
         self.assertFalse(self.engine._remote_exists(id_generator()))
-
-    def test_can_find_release(self):
-        release = self.repo.create_head('/'.join([self.repo_structure['release'], "test_release"]))
-        self.assertEqual(self.engine.release, release)
-
-    def test_can_find_hotfix(self):
-        hotfix = self.repo.create_head('/'.join([self.repo_structure['hotfix'], "test_hotfix"]))
-        self.assertEqual(self.engine.hotfix, hotfix)
-
-
-class OfflineFeatureTestCase(OfflineTestCase): pass
-
