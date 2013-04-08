@@ -66,7 +66,6 @@ class OfflineTestCase(unittest.TestCase):
         self.engine = Engine(skip_auth=True, debug=0)
 
     def tearDown(self):
-
         # ensure no web-talking functions were called:
         self.assertFalse(self.mock_gh.called)
         self.mock_gh_p.stop()
@@ -85,6 +84,13 @@ class OfflineTestCase(unittest.TestCase):
             release=kwargs.get("release", id_generator()),
             hotfix=kwargs.get("hotfix", id_generator()),
         )
+
+
+class OnlineTestCase(OfflineTestCase):
+    def tearDown(self):
+        self.mock_gh_p.stop()
+        shutil.rmtree(TEST_REPO)
+        print "tearing down test repo"
 
 
 class OfflineSetupTestCase(OfflineTestCase):
@@ -263,26 +269,56 @@ class OfflineFeatureTestCase(OfflineTestCase, RepositoryBaseTestCase):
             self.assertIn(feature.name, features)
 
 
-class OnlineBranchFindingTestCase(object):
+class RemoteFindingTestCase(OfflineTestCase):
+    def setUp(self):
+        # create new repository
+        print "Creating new test repo..."
+        self.mock_gh_p = mock.patch('github.Github')
+        self.mock_gh = self.mock_gh_p.start()
+        self.repo = git.Repo.init(TEST_REPO)
+        # make an initial commit
+        self.repo.index.commit("Initial commit")
+        self.mock_gh.start()
+
+        os.chdir(TEST_REPO)
+        ## Can't instantiate engine here because we need to make
+        ## repo changes --- it won't let you while it's alive.
 
     def test_origin_is_origin(self):
-        print self.repo.remotes
-        print self.repo_structure
-        self.assertEqual(self.engine.origin, getattr(self.repo.remotes, self.repo_structure['origin']))
+        origin_name = id_generator()
+        self.repo.create_remote(origin_name, id_generator())
+        self.engine = Engine(skip_auth=True, debug=0)
+        self._do_setup_things(origin=origin_name)
+
+        self.assertEqual(self.engine.origin, getattr(self.repo.remotes, origin_name))
 
     def test_get_origin_no_origin(self):
-        self.engine._cr.flowhub.structure.origin = id_generator()
+        origin_name = id_generator()
+        self.engine = Engine(skip_auth=True, debug=0)
+        self._do_setup_things(origin=origin_name)
+
         with self.assertRaises(NoSuchRemote):
             self.engine.origin
 
     def test_canon_is_canon(self):
-        self.assertEqual(self.engine.canon, getattr(self.repo.remotes, self.repo_structure['canon']))
+        canon_name = id_generator()
+        self.repo.create_remote(canon_name, id_generator())
+        self.engine = Engine(skip_auth=True, debug=0)
+        self._do_setup_things(canon=canon_name)
+        self.assertEqual(self.engine.canon, getattr(self.repo.remotes, canon_name))
 
     def test_get_canon_no_canon(self):
-        self.engine._cr.flowhub.structure.canon = id_generator()
+        canon_name = id_generator()
+        self.engine = Engine(skip_auth=True, debug=0)
+        self._do_setup_things(canon=canon_name)
+
         with self.assertRaises(NoSuchRemote):
             self.engine.canon
 
     def test_remote_exists(self):
-        self.assertTrue(self.engine._remote_exists(self.repo_structure['canon']))
+        canon_name = id_generator()
+        self.repo.create_remote(canon_name, id_generator())
+        self.engine = Engine(skip_auth=True, debug=0)
+        self._do_setup_things(canon=canon_name)
+        self.assertTrue(self.engine._remote_exists(canon_name))
         self.assertFalse(self.engine._remote_exists(id_generator()))

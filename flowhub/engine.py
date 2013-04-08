@@ -48,7 +48,6 @@ class Engine(object):
         if not self._repo:
             return
 
-        self._cw = Configurator(self._repo.config_writer())
         self._cr = Configurator(self._repo.config_reader())
 
         self._gh = None
@@ -164,6 +163,7 @@ class Engine(object):
         release,
         hotfix,
     ):
+        self._cw = Configurator(self._repo.config_writer())
         if self.__debug > 2:
             print "Begin repo setup"
         if not hasattr(self._cw, 'flowhub') or not hasattr(self._cw.flowhub, 'structure'):
