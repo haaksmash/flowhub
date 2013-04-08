@@ -78,6 +78,9 @@ class Configurator(object):
 
         return section
 
+    def write(self):
+        self._confer.write()
+
     def __getattr__(self, attr):
         if attr in self._sections:
             return self._sections[attr]

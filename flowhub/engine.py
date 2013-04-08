@@ -191,7 +191,13 @@ class Engine(object):
         self._cw.flowhub.prefix.feature = feature
         self._cw.flowhub.prefix.release = release
         self._cw.flowhub.prefix.hotfix = hotfix
+        self._cw.write()
 
+        # this should not be necessary, but is?
+        # only hold the lockfile as long as we need it.
+        self._cw._confer._lock._release_lock()
+
+        self._cw = None
         # Refresh the read-only reader.
         self._cr = Configurator(self._repo.config_reader())
 
