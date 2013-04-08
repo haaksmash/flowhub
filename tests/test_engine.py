@@ -55,9 +55,12 @@ class OfflineTestCase(unittest.TestCase):
     def setUp(self):
         # create new repository
         print "Creating new test repo..."
+        self.mock_gh_p = mock.patch('github.Github')
+        self.mock_gh = self.mock_gh_p.start()
         self.repo = git.Repo.init(TEST_REPO)
         # make an initial commit
         self.repo.index.commit("Initial commit")
+        self.mock_gh.start()
 
         os.chdir(TEST_REPO)
         self.engine = Engine(skip_auth=True, debug=0)
@@ -65,6 +68,8 @@ class OfflineTestCase(unittest.TestCase):
     def tearDown(self):
 
         # ensure no web-talking functions were called:
+        self.assertFalse(self.mock_gh.called)
+        self.mock_gh_p.stop()
 
         shutil.rmtree(TEST_REPO)
         print "tearing down test repo"
@@ -116,6 +121,8 @@ class OfflineBranchFindingTestCase(OfflineTestCase):
     def setUp(self):
         # create new repository
         print "Creating new test repo..."
+        self.mock_gh_p = mock.patch('github.Github')
+        self.mock_gh = self.mock_gh_p.start()
         self.repo = git.Repo.init(TEST_REPO)
         # make an initial commit
         self.repo.index.commit("Initial commit")
