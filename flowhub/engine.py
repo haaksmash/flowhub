@@ -61,6 +61,7 @@ class Engine(object):
                 return
 
             try:
+                print self._cr.flowhub._subsections
                 self._gh_repo = self._gh.get_user().get_repo(
                     self._cr.flowhub.structure.name
                 )
@@ -79,7 +80,7 @@ class Engine(object):
 
             if self._gh.rate_limiting[0] < 100:
                 warnings.warn("You are close to exceeding your GitHub access "
-                    "rate; {} left out of {} initially".format(
+                    "rate; {} left out of {}".format(
                         *self._gh.rate_limiting
                     )
                 )
@@ -105,22 +106,21 @@ class Engine(object):
             # Refresh the readers
             self._cr = Configurator(self._repo.config_reader())
 
-        if self.__debug > 2:
-            print "Checking for repo setup"
-        if (
-            not hasattr(self._cr.flowhub, 'structure')
-            or not hasattr(self._cr.flowhub.structure, 'name')
-        ):
-            print (
-                "This repository is not yet Flowhub-enabled. " +
-                "Let's take care of that now."
-            )
-            self.setup_repository_structure()
-            print '\n'.join((
-                "You can change these settings just like all git settings, using the\n",
-                "\tgit config\n",
-                "command."
-            ))
+        # if self.__debug > 2:
+        #     print "Checking for repo setup"
+        # if (
+        #     not hasattr(self._cr.flowhub, 'structure')
+        #     or not hasattr(self._cr.flowhub.structure, 'name')
+        # ):
+        #     print (
+        #         "This repository is not yet Flowhub-enabled. " +
+        #         "Let's take care of that now."
+        #     )
+        #     print '\n'.join((
+        #         "You can change these settings just like all git settings, using the\n",
+        #         "\tgit config\n",
+        #         "command."
+        #     ))
         return True
 
     def _create_token(self):
@@ -163,41 +163,35 @@ class Engine(object):
         release,
         hotfix,
     ):
-        self._cw = Configurator(self._repo.config_writer())
+        cw = self._repo.config_writer()
         if self.__debug > 2:
             print "Begin repo setup"
-        if not hasattr(self._cw, 'flowhub') or not hasattr(self._cw.flowhub, 'structure'):
-            if self.__debug > 2:
-                print "creating flowhub structure section"
-            self._cw.add_section('flowhub "structure"')
+        if not cw.has_section('flowhub "structure"'):
+            cw.add_section('flowhub "structure"')
 
-        self._cw.flowhub.structure.name = name
+        cw.set('flowhub "structure"', 'name', name)
 
-        self._cw.flowhub.structure.origin = origin
-        self._cw.flowhub.structure.canon = canon
-        self._cw.flowhub.structure.master = master
+        cw.set('flowhub "structure"', 'origin', origin)
+        cw.set('flowhub "structure"', 'canon', canon)
+        cw.set('flowhub "structure"', 'master', master)
+
         if not self._branch_exists(master):
             print "\tCreating branch {}".format(master)
             self._repo.create_head(master)
 
-        self._cw.flowhub.structure.develop = develop
+        cw.set('flowhub "structure"', 'develop', develop)
         if not self._branch_exists(develop):
             print "\tCreating branch {}".format(develop)
             self._repo.create_head(develop)
 
-        if not hasattr(self._cr.flowhub, 'prefix'):
-            self._cw.add_section('flowhub "prefix"')
+        if not cw.has_section('flowhub "prefix"'):
+            cw.add_section('flowhub "prefix"')
 
-        self._cw.flowhub.prefix.feature = feature
-        self._cw.flowhub.prefix.release = release
-        self._cw.flowhub.prefix.hotfix = hotfix
-        self._cw.write()
+        cw.set('flowhub "prefix"', 'feature', feature)
+        cw.set('flowhub "prefix"', 'release', release)
+        cw.set('flowhub "prefix"', 'hotfix', hotfix)
+        cw.write()
 
-        # this should not be necessary, but is?
-        # only hold the lockfile as long as we need it.
-        self._cw._confer._lock._release_lock()
-
-        self._cw = None
         # Refresh the read-only reader.
         self._cr = Configurator(self._repo.config_reader())
 

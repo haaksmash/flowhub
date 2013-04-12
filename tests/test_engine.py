@@ -55,7 +55,7 @@ class OfflineTestCase(unittest.TestCase):
     def setUp(self):
         # create new repository
         print "Creating new test repo..."
-        self.mock_gh_p = mock.patch('github.Github')
+        self.mock_gh_p = mock.patch('flowhub.engine.Github')
         self.mock_gh = self.mock_gh_p.start()
         self.repo = git.Repo.init(TEST_REPO)
         # make an initial commit
@@ -87,6 +87,17 @@ class OfflineTestCase(unittest.TestCase):
 
 
 class OnlineTestCase(OfflineTestCase):
+    def setUp(self):
+        print "Creating new test repo..."
+        self.mock_gh_p = mock.patch('flowhub.engine.Github')
+        self.mock_gh = self.mock_gh_p.start()
+        self.repo = git.Repo.init(TEST_REPO)
+        # make an initial commit
+        self.repo.index.commit("Initial commit")
+        self.mock_gh.start()
+
+        os.chdir(TEST_REPO)
+
     def tearDown(self):
         self.mock_gh_p.stop()
         shutil.rmtree(TEST_REPO)
@@ -121,6 +132,48 @@ class OfflineSetupTestCase(OfflineTestCase):
         self.assertEqual(self.engine._cr.flowhub.prefix.feature, args["feature"])
         self.assertEqual(self.engine._cr.flowhub.prefix.release, args["release"])
         self.assertEqual(self.engine._cr.flowhub.prefix.hotfix, args["hotfix"])
+
+
+class OnlineSetupTestCase(OnlineTestCase):
+    def teardown(self):
+        super(OnlineTestCase, self).tearDown()
+        self.engine = None
+
+    def test_setup_repo_structure(self):
+        self.engine = Engine(skip_auth=True, debug=0)
+        self._do_setup_things()
+        self.engine = Engine(skip_auth=False, debug=0)
+
+    def test_setup_no_token(self):
+
+        def raise_attribute_error(obj):
+            raise AttributeError()
+
+        def make_mock_gh():
+            self.engine._gh = mock.MagicMock()
+
+        self.mock_gh.side_effect = raise_attribute_error
+        # because interaction is hard to mock, just...mock it all the way out.
+        with mock.patch('flowhub.engine.Engine._create_token') as patch:
+            patch.return_value = True
+            patch.side_effect = make_mock_gh
+            self.engine = Engine(skip_auth=True, debug=0)
+            self._do_setup_things()
+            self.engine = Engine(skip_auth=False, debug=0)
+
+            self.assertTrue(patch.called)
+
+        del self.mock_gh.side_effect
+
+    def test_setup_repo_with_gh_exception(self):
+        def raise_gh_error(obj):
+            raise GithubException
+        self.engine = Engine(skip_auth=True, debug=0)
+        self._do_setup_things()
+
+        self.mock_gh.get_user.side_effect = raise_gh_error
+        self.engine = Engine(skip_auth=False, debug=0)
+        print "###", self.mock_gh.mock_calls
 
 
 class OfflineBranchFindingTestCase(OfflineTestCase):

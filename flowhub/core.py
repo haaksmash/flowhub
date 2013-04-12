@@ -340,7 +340,14 @@ def run():
     if args.verbosity > 2:
         print "Args: ", args
 
-    e = Engine(debug=args.verbosity, skip_auth=args.no_gh)
+    # Force initialization to run offline.
+    if args.subparser == 'init':
+        e = Engine(debug=args.verbosity, skip_auth=True)
+        handle_init_call(args, e)
+        return
+
+    else:
+        e = Engine(debug=args.verbosity, skip_auth=args.no_gh)
 
     if args.subparser == 'feature':
         handle_feature_call(args, e)
@@ -353,9 +360,6 @@ def run():
 
     elif args.subparser == 'cleanup':
         handle_cleanup_call(args, e)
-
-    elif args.subparser == 'init':
-        handle_init_call(args, e)
 
     elif args.subparser == 'issue':
         handle_issue_call(args, e)
