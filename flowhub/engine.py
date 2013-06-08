@@ -219,7 +219,6 @@ class Engine(object):
     @property
     def canon(self):
         canon_name = self._cr.flowhub.structure.canon
-        print "canon name", canon_name
         if self.__debug > 3:
             print "finding canon repo {}".format(canon_name)
         return self.__get_remote_by_name(canon_name)
