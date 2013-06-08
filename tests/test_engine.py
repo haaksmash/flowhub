@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 import git
-from github import Github, GithubException
+import itertools
 import mock
 import os
 import shutil
@@ -30,9 +30,6 @@ import unittest
 
 from tests import (
     id_generator,
-    USERNAME,
-    PASSWORD,
-    TEST_DIR,
     TEST_REPO,
     REPO_NAME,
 )
@@ -73,28 +70,34 @@ class OfflineTestCase(unittest.TestCase):
         shutil.rmtree(TEST_REPO)
         print "tearing down test repo"
 
-    def _do_setup_things(self, **kwargs):
+    def _do_setup_things(self, engine=None, **kwargs):
+        if engine is None:
+            engine = self.engine
+
+        self.setup_args = {
+            "origin": kwargs.get("origin", id_generator()),
+            "canon": kwargs.get("canon", id_generator()),
+            "master": kwargs.get("master", id_generator()),
+            "develop": kwargs.get("develop", id_generator()),
+            "feature": kwargs.get("feature", id_generator()),
+            "release": kwargs.get("release", id_generator()),
+            "hotfix": kwargs.get("hotfix", id_generator()),
+        }
+
         self.engine.setup_repository_structure(
             name=REPO_NAME,
-            origin=kwargs.get("origin", id_generator()),
-            canon=kwargs.get("canon", id_generator()),
-            master=kwargs.get("master", id_generator()),
-            develop=kwargs.get("develop", id_generator()),
-            feature=kwargs.get("feature", id_generator()),
-            release=kwargs.get("release", id_generator()),
-            hotfix=kwargs.get("hotfix", id_generator()),
+            **self.setup_args
         )
 
 
 class OnlineTestCase(OfflineTestCase):
     def setUp(self):
         print "Creating new test repo..."
-        self.mock_gh_p = mock.patch('flowhub.engine.Github')
+        self.mock_gh_p = mock.patch('flowhub.engine.Github', autospec=True)
         self.mock_gh = self.mock_gh_p.start()
         self.repo = git.Repo.init(TEST_REPO)
         # make an initial commit
         self.repo.index.commit("Initial commit")
-        self.mock_gh.start()
 
         os.chdir(TEST_REPO)
 
@@ -133,6 +136,12 @@ class OfflineSetupTestCase(OfflineTestCase):
         self.assertEqual(self.engine._cr.flowhub.prefix.release, args["release"])
         self.assertEqual(self.engine._cr.flowhub.prefix.hotfix, args["hotfix"])
 
+    def test_get_repo(self):
+        self.engine = Engine(skip_auth=True)
+        self._do_setup_things()
+
+        self.assertEqual(self.repo, self.engine._get_repo())
+
 
 class OnlineSetupTestCase(OnlineTestCase):
     def teardown(self):
@@ -146,13 +155,10 @@ class OnlineSetupTestCase(OnlineTestCase):
 
     def test_setup_no_token(self):
 
-        def raise_attribute_error(obj):
-            raise AttributeError()
-
         def make_mock_gh():
             self.engine._gh = mock.MagicMock()
 
-        self.mock_gh.side_effect = raise_attribute_error
+        self.mock_gh.side_effect = AttributeError
         # because interaction is hard to mock, just...mock it all the way out.
         with mock.patch('flowhub.engine.Engine._create_token') as patch:
             patch.return_value = True
@@ -164,16 +170,6 @@ class OnlineSetupTestCase(OnlineTestCase):
             self.assertTrue(patch.called)
 
         del self.mock_gh.side_effect
-
-    def test_setup_repo_with_gh_exception(self):
-        def raise_gh_error(obj):
-            raise GithubException
-        self.engine = Engine(skip_auth=True, debug=0)
-        self._do_setup_things()
-
-        self.mock_gh.get_user.side_effect = raise_gh_error
-        self.engine = Engine(skip_auth=False, debug=0)
-        print "###", self.mock_gh.mock_calls
 
 
 class OfflineBranchFindingTestCase(OfflineTestCase):
@@ -246,8 +242,14 @@ class RepositoryBaseTestCase(unittest.TestCase):
     def assertHasBranch(self, branchname):
         self.assertTrue(hasattr(self.repo.heads, branchname))
 
+    def assertNotHasBranch(self, branchname):
+        self.assertFalse(hasattr(self.repo.heads, branchname))
+
     def assertOnBranch(self, branchname):
         self.assertEqual(self.repo.head.reference, getattr(self.repo.heads, branchname))
+
+    def assertNotOnBranch(self, branchname):
+        self.assertNotEqual(self.repo.head.reference, getattr(self.repo.heads, branchname))
 
 
 class OfflineFeatureTestCase(OfflineTestCase, RepositoryBaseTestCase):
@@ -303,6 +305,28 @@ class OfflineFeatureTestCase(OfflineTestCase, RepositoryBaseTestCase):
 
         self.assertOnBranch(self.repo_structure['feature'] + FEATURE_NAME)
 
+    def test_abandon_feature(self):
+        ISSUE_NUM = id_generator(chars=string.digits)
+        FEATURE_NAME = ISSUE_NUM + "-" + id_generator()
+        self.engine._create_feature(FEATURE_NAME)
+
+        self.engine._abandon_feature()
+        self.assertNotHasBranch(FEATURE_NAME)
+        self.assertOnBranch(self.engine.develop.name)
+
+    def test_abandon_feature_by_name(self):
+        ISSUE_NUM = id_generator(chars=string.digits)
+        FEATURE_NAME = ISSUE_NUM + "-" + id_generator()
+        self.engine._create_feature(FEATURE_NAME)
+        FEATURE_2_NAME = id_generator()
+        # create a new feature to switch to it
+        self.engine._create_feature(FEATURE_2_NAME)
+        self.engine._abandon_feature(FEATURE_NAME)
+
+        self.assertHasBranch(self.setup_args['feature']+FEATURE_2_NAME)
+        self.assertNotHasBranch(FEATURE_NAME)
+        self.assertOnBranch(self.setup_args['feature']+FEATURE_2_NAME)
+
     def test_list_features(self):
         features = []
         for i in range(5):
@@ -322,6 +346,73 @@ class OfflineFeatureTestCase(OfflineTestCase, RepositoryBaseTestCase):
             self.assertIn(feature.name, features)
 
 
+class OnlineFeatureTestCase(OnlineTestCase, RepositoryBaseTestCase):
+    def setUp(self):
+        super(OnlineTestCase, self).setUp()
+        self.engine = Engine(skip_auth=True, debug=0)
+        self._do_setup_things()
+        self.repo.create_remote(self.setup_args["origin"], id_generator())
+        self.repo.create_remote(self.setup_args["canon"], id_generator())
+        self.engine = Engine(skip_auth=False, debug=0)
+
+    def test_create_with_tracking_branch(self):
+        FEATURE_NAME = id_generator()
+        patch = mock.Mock()
+        self.engine._repo.git = patch
+
+        self.engine._create_feature(FEATURE_NAME, True)
+        patch.assert_has_calls([
+            mock.call.push(
+                self.setup_args['origin'],
+                self.setup_args['feature']+FEATURE_NAME,
+                set_upstream=True,
+            )
+        ])
+
+    def test_abandon(self):
+        self.engine._repo.git = mock.Mock()
+        FEATURE_NAME = id_generator()
+
+        # create a feature to abandon...
+        self.engine._create_feature(FEATURE_NAME, create_tracking_branch=False)
+        # and abandon it.
+        self.engine._abandon_feature(FEATURE_NAME)
+
+        # ensure that the abandon is pushed to origin.
+        self.engine._repo.git.assert_has_calls([
+            mock.call.push(
+                self.setup_args['origin'],
+                self.setup_args['feature']+FEATURE_NAME,
+                delete=True,
+                force=True,
+            ),
+        ])
+
+    def _setup_publish_test(self):
+        self.engine._repo.git = mock.Mock()
+        self.engine._create_pull_request = mock.Mock()
+        self.FEATURE_NAME = id_generator()
+
+        self.engine._create_feature(self.FEATURE_NAME)
+
+    def test_publish_origin_not_canon_new_pr(self):
+        self._setup_publish_test()
+        self.engine._publish_feature(self.FEATURE_NAME)
+
+        self.engine._repo.git.push.assert_has_calls([
+            mock.call.push(
+                self.setup_args['origin'],
+                self.setup_args['feature']+self.FEATURE_NAME,
+                set_upstream=True,
+            )
+        ])
+
+        self.assertEqual(self.engine._create_pull_request.call_count, 1)
+
+    def test_publish_origin_is_canon(self):
+        pass
+
+
 class RemoteFindingTestCase(OfflineTestCase):
     def setUp(self):
         # create new repository
@@ -334,8 +425,6 @@ class RemoteFindingTestCase(OfflineTestCase):
         self.mock_gh.start()
 
         os.chdir(TEST_REPO)
-        ## Can't instantiate engine here because we need to make
-        ## repo changes --- it won't let you while it's alive.
 
     def test_origin_is_origin(self):
         origin_name = id_generator()
@@ -375,3 +464,64 @@ class RemoteFindingTestCase(OfflineTestCase):
         self._do_setup_things(canon=canon_name)
         self.assertTrue(self.engine._remote_exists(canon_name))
         self.assertFalse(self.engine._remote_exists(id_generator()))
+
+
+class TestPullRequestCase(OnlineTestCase):
+    def setUp(self):
+        super(TestPullRequestCase, self).setUp()
+
+        self.engine = Engine(skip_auth=True, debug=0)
+        self._do_setup_things()
+        self.repo.create_remote(self.setup_args["origin"], id_generator())
+        self.repo.create_remote(self.setup_args["canon"], id_generator())
+        self.engine = Engine(skip_auth=False, debug=0)
+
+        self.base = id_generator()
+        self.head = id_generator()
+
+    def test_issue_match(self):
+        issue_num = id_generator(chars=string.digits)
+        self.head = issue_num + '-' + self.head
+
+        self.engine._create_pull_request(self.base, self.head)
+        self.engine.gh_canon.assert_has_calls([
+            mock.call.get_issue(int(issue_num)),
+            mock.call.create_pull(
+                issue=mock.ANY,
+                base=self.base,
+                head=self.head,
+            )
+        ])
+
+    def test_is_issue(self):
+        with mock.patch('__builtin__.raw_input') as patch:
+            issue_num = int(id_generator(chars=string.digits))
+            c = itertools.cycle(['y', issue_num])
+            patch.side_effect = lambda x: c.next()
+            self.engine._open_issue = mock.Mock()
+            self.engine._create_pull_request(self.base, self.head)
+
+            self.engine.gh_canon.assert_has_calls([
+                mock.call.get_issue(issue_num),
+                mock.call.create_pull(
+                    issue=mock.ANY,
+                    base=self.base,
+                    head=self.head,
+                )
+            ])
+
+    def test_is_not_issue(self):
+        with mock.patch('__builtin__.raw_input') as patch:
+            patch.return_value = "N"
+            self.engine._open_issue = mock.Mock()
+            self.engine._create_pull_request(self.base, self.head)
+
+            self.assertEqual(self.engine._open_issue.call_count, 1)
+
+            self.engine.gh_canon.assert_has_calls([
+                mock.call.create_pull(
+                    issue=mock.ANY,
+                    base=self.base,
+                    head=self.head,
+                )
+            ])
