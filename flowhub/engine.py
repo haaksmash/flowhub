@@ -61,26 +61,19 @@ class Engine(object):
                 return
 
             try:
-                print self._cr.flowhub._subsections
                 self._gh_repo = self._gh.get_user().get_repo(
                     self._cr.flowhub.structure.name
                 )
             except GithubException:
-                try:
-                    self._get_repo = [
-                        x for x in self._gh.get_user().get_repos()
-                            if x.name == self._cr.flowhub.structure.name
-                    ][0]
-                except IndexError:
-                    raise ImproperlyConfigured(
-                        "No repo with given name: {}".format(
-                            self._cr.flowhub.structure.name,
-                        )
+                raise ImproperlyConfigured(
+                    "No repo with given name: {}".format(
+                        self._cr.flowhub.structure.name,
                     )
+                )
 
             if self._gh.rate_limiting[0] < 100:
-                warnings.warn("You are close to exceeding your GitHub access "
-                    "rate; {} left out of {}".format(
+                warnings.warn(
+                    "You are close to exceeding your GitHub access rate; {} left out of {}".format(
                         *self._gh.rate_limiting
                     )
                 )
@@ -106,21 +99,6 @@ class Engine(object):
             # Refresh the readers
             self._cr = Configurator(self._repo.config_reader())
 
-        # if self.__debug > 2:
-        #     print "Checking for repo setup"
-        # if (
-        #     not hasattr(self._cr.flowhub, 'structure')
-        #     or not hasattr(self._cr.flowhub.structure, 'name')
-        # ):
-        #     print (
-        #         "This repository is not yet Flowhub-enabled. " +
-        #         "Let's take care of that now."
-        #     )
-        #     print '\n'.join((
-        #         "You can change these settings just like all git settings, using the\n",
-        #         "\tgit config\n",
-        #         "command."
-        #     ))
         return True
 
     def _create_token(self):
@@ -345,11 +323,11 @@ class Engine(object):
 
                 good_number = True
 
-            pr = repo.create_pull(
-                issue=issue,
-                base=base,
-                head=head,
-            )
+        pr = repo.create_pull(
+            issue=issue,
+            base=base,
+            head=head,
+        )
 
         return pr
 
@@ -406,6 +384,7 @@ class Engine(object):
         ]
 
         return True
+    create_feature = with_summary(_create_feature)
 
     def work_feature(self, name=None, issue=None):
         """Simply checks out the feature branch for the named feature."""
@@ -443,8 +422,6 @@ class Engine(object):
         else:
             print "No feature with name {}".format(name)
             return
-
-    create_feature = with_summary(_create_feature)
 
     def _accept_feature(self, name=None, summary=None):
         if summary is None:
@@ -540,18 +517,22 @@ class Engine(object):
             force=True,
         )
         summary += [
-            "Deleted branch {} locally and from remote {}".format(
+            "Deleted branch {} locally".format(
                 branch_name,
-                self._cr.flowhub.structure.origin,
             ),
         ]
 
-        self._repo.git.push(
-            self._cr.flowhub.structure.origin,
-            branch_name,
-            delete=True,
-            force=True,
-        )
+        if not self.offline:
+            self._repo.git.push(
+                self._cr.flowhub.structure.origin,
+                branch_name,
+                delete=True,
+                force=True,
+            )
+            summary[-1] += "and from remote {}".format(
+                self._cr.flowhub.structure.origin,
+            )
+
         summary += [
             "Checked out branch {}".format(
                 return_branch.name,
@@ -820,9 +801,9 @@ class Engine(object):
 
         branch_name = self._repo.head.reference.name
         self._repo.git.push(
-                self._cr.flowhub.structure.origin,
-                branch_name,
-                set_upstream=True,
+            self._cr.flowhub.structure.origin,
+            branch_name,
+            set_upstream=True,
         )
 
         base = self.release.name
