@@ -24,7 +24,6 @@ import itertools
 import mock
 import os
 import shutil
-import subprocess
 import string
 import unittest
 
@@ -39,9 +38,9 @@ from flowhub.engine import Engine, NoSuchBranch, NoSuchRemote
 class NotARepoSetupTestCase(unittest.TestCase):
     def test_setup_abort(self):
         def raise_call_error(*args, **kwargs):
-            raise subprocess.CalledProcessError(None, None)
+            raise git.exc.InvalidGitRepositoryError
 
-        with mock.patch("subprocess.check_output") as patch:
+        with mock.patch("git.Repo.__init__") as patch:
             patch.side_effect = raise_call_error
 
             with self.assertRaises(git.exc.InvalidGitRepositoryError):

@@ -223,9 +223,29 @@ class FeatureCallTestCase(CoreTestCase):
     def test_accepted(self):
         self.args.action = 'accepted'
         self.args.name = id_generator()
+        self.args.no_delete = False
+
         handle_feature_call(self.args, self.engine_mock)
+
         self.engine_mock.assert_has_calls([
-            mock.call.accept_feature(name=self.args.name),
+            mock.call.accept_feature(
+                name=self.args.name,
+                delete_feature_branch=True,
+            ),
+        ])
+
+    def test_accepted_no_delete(self):
+        self.args.action = 'accepted'
+        self.args.name = id_generator()
+        self.args.no_delete = True
+
+        handle_feature_call(self.args, self.engine_mock)
+
+        self.engine_mock.assert_has_calls([
+            mock.call.accept_feature(
+                name=self.args.name,
+                delete_feature_branch=False,
+            ),
         ])
 
     def test_list(self):
@@ -268,6 +288,7 @@ class ReleaseCallTestCase(CoreTestCase):
 
             patch.assert_has_calls([
                 mock.call(self.args, self.engine_mock, "pre-release-publish"),
+                mock.call().__nonzero__(),  # the if check
                 mock.call(self.args, self.engine_mock, "post-release-publish", self.args.name),
             ])
 
