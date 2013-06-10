@@ -546,9 +546,9 @@ class Engine(object):
 
     abandon_feature = with_summary(_abandon_feature)
 
-    def _do_hook(self, name):
+    def _do_hook(self, name, *args):
         try:
-            subprocess.check_call(os.path.join(self._repo.git_dir, 'hooks', name))
+            subprocess.check_call([os.path.join(self._repo.git_dir, 'hooks', name)] + args)
             return True
         except OSError:
             if self.__debug > 2:
@@ -708,7 +708,7 @@ class Engine(object):
         ]
 
         if not self.no_hooks:
-            if not self._do_hook("post-release-start"):
+            if not self._do_hook("post-release-start", branch_name):
                 return False
 
         return True
@@ -806,11 +806,11 @@ class Engine(object):
         # merge into develop
         self.develop.checkout()
         self._repo.git.merge(
-            release_name,
+            self.master.name,
             no_ff=True,
         )
         summary += [
-            "Branch {} merged into {}".format(release_name, self.develop.name),
+            "Branch {} merged into {}".format(self.master.name, self.develop.name),
         ]
 
         # push to canon
@@ -1107,11 +1107,11 @@ class Engine(object):
             trunk = self.develop
         trunk.checkout()
         self._repo.git.merge(
-            hotfix_name,
+            self.master.name,
             no_ff=True,
         )
         summary += [
-            "Branch {} merged into {}".format(hotfix_name, trunk.name),
+            "Branch {} merged into {}".format(self.master.name, trunk.name),
         ]
 
         # push to canon
