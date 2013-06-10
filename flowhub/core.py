@@ -345,12 +345,12 @@ def run():
 
     # Force initialization to run offline.
     if args.subparser == 'init':
-        e = Engine(debug=args.verbosity, skip_auth=True)
+        e = Engine(debug=args.verbosity, offline=True)
         handle_init_call(args, e)
         return
 
     else:
-        e = Engine(debug=args.verbosity, skip_auth=args.no_gh)
+        e = Engine(debug=args.verbosity, offline=args.no_gh)
 
     if args.subparser == 'feature':
         handle_feature_call(args, e)
