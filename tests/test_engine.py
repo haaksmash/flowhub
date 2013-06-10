@@ -25,6 +25,7 @@ import mock
 import os
 import shutil
 import subprocess
+from subprocess import CalledProcessError
 import string
 import unittest
 
@@ -45,7 +46,7 @@ class NotARepoSetupTestCase(unittest.TestCase):
             patch.side_effect = raise_call_error
 
             with self.assertRaises(git.exc.InvalidGitRepositoryError):
-                Engine(skip_auth=True)
+                Engine(offline=True)
 
 
 class OfflineTestCase(unittest.TestCase):
@@ -60,7 +61,7 @@ class OfflineTestCase(unittest.TestCase):
         self.mock_gh.start()
 
         os.chdir(TEST_REPO)
-        self.engine = Engine(skip_auth=True, debug=0)
+        self.engine = Engine(offline=True, debug=0)
 
     def tearDown(self):
         # ensure no web-talking functions were called:
@@ -137,7 +138,7 @@ class OfflineSetupTestCase(OfflineTestCase):
         self.assertEqual(self.engine._cr.flowhub.prefix.hotfix, args["hotfix"])
 
     def test_get_repo(self):
-        self.engine = Engine(skip_auth=True)
+        self.engine = Engine(offline=True)
         self._do_setup_things()
 
         self.assertEqual(self.repo, self.engine._get_repo())
@@ -149,9 +150,9 @@ class OnlineSetupTestCase(OnlineTestCase):
         self.engine = None
 
     def test_setup_repo_structure(self):
-        self.engine = Engine(skip_auth=True, debug=0)
+        self.engine = Engine(offline=True, debug=0)
         self._do_setup_things()
-        self.engine = Engine(skip_auth=False, debug=0)
+        self.engine = Engine(offline=False, debug=0)
 
     def test_setup_no_token(self):
 
@@ -163,9 +164,9 @@ class OnlineSetupTestCase(OnlineTestCase):
         with mock.patch('flowhub.engine.Engine._create_token') as patch:
             patch.return_value = True
             patch.side_effect = make_mock_gh
-            self.engine = Engine(skip_auth=True, debug=0)
+            self.engine = Engine(offline=True, debug=0)
             self._do_setup_things()
-            self.engine = Engine(skip_auth=False, debug=0)
+            self.engine = Engine(offline=False, debug=0)
 
             self.assertTrue(patch.called)
 
@@ -195,7 +196,7 @@ class OfflineBranchFindingTestCase(OfflineTestCase):
         self.repo.create_remote(self.repo_structure['canon'], "None")
 
         os.chdir(TEST_REPO)
-        self.engine = Engine(skip_auth=True, debug=1)
+        self.engine = Engine(offline=True, debug=1)
         self._do_setup_things(**self.repo_structure)
 
     def test_develop_is_develop(self):
@@ -349,11 +350,11 @@ class OfflineFeatureTestCase(OfflineTestCase, RepositoryBaseTestCase):
 class OnlineFeatureTestCase(OnlineTestCase, RepositoryBaseTestCase):
     def setUp(self):
         super(OnlineTestCase, self).setUp()
-        self.engine = Engine(skip_auth=True, debug=0)
+        self.engine = Engine(offline=True, debug=0)
         self._do_setup_things()
         self.repo.create_remote(self.setup_args["origin"], id_generator())
         self.repo.create_remote(self.setup_args["canon"], id_generator())
-        self.engine = Engine(skip_auth=False, debug=0)
+        self.engine = Engine(offline=False, debug=0)
 
     def test_create_with_tracking_branch(self):
         FEATURE_NAME = id_generator()
@@ -409,8 +410,115 @@ class OnlineFeatureTestCase(OnlineTestCase, RepositoryBaseTestCase):
 
         self.assertEqual(self.engine._create_pull_request.call_count, 1)
 
-    def test_publish_origin_is_canon(self):
-        pass
+
+class OnlineHooksTestCase(OnlineTestCase, RepositoryBaseTestCase):
+    def setUp(self):
+        super(OnlineTestCase, self).setUp()
+        self.engine = Engine(offline=True, debug=0)
+        self._do_setup_things()
+        self.repo.create_remote(self.setup_args["origin"], id_generator())
+        self.repo.create_remote(self.setup_args["canon"], id_generator())
+
+        # checkout the "master" branch
+        getattr(self.repo.branches, self.setup_args['master']).checkout()
+
+        self.engine = Engine(offline=False, debug=0)
+
+    def test_hook_DNE(self):
+        self._setup_engine()
+
+        with mock.patch('subprocess.check_call') as patch:
+            patch.side_effect = OSError
+            self.engine._create_feature(self.BRANCH_NAME)
+
+        self.assertHasBranch(self.setup_args['feature'] + self.BRANCH_NAME)
+
+    def test_hook_error(self):
+        self._setup_engine()
+
+        with mock.patch('subprocess.check_call') as patch:
+            patch.side_effect = CalledProcessError(None, None, None)
+            self.assertFalse(self.engine._create_feature(self.BRANCH_NAME))
+
+    def _setup_engine(self):
+        self.engine._repo.git = mock.Mock()
+        self.engine._create_pull_request = mock.Mock()
+        self.BRANCH_NAME = id_generator()
+
+    def test_pre_feature_publish_hook(self):
+        self._setup_engine()
+
+        self.engine._do_hook = mock.Mock()
+        self.engine._create_feature(self.BRANCH_NAME)
+        self.engine._publish_feature(self.BRANCH_NAME)
+
+        self.engine._do_hook.assert_has_calls([
+            mock.call("pre-feature-publish"),
+        ])
+
+    def test_post_feature_start_hook(self):
+        self._setup_engine()
+        self.engine._do_hook = mock.Mock()
+        self.engine._create_feature(self.BRANCH_NAME)
+
+        self.engine._do_hook.assert_has_calls([
+            mock.call("post-feature-start"),
+        ])
+
+    def test_post_release_start_hook(self):
+        self._setup_engine()
+        self.engine._do_hook = mock.Mock()
+        with mock.patch("git.remote.Remote.push"):
+            self.engine._start_release(self.BRANCH_NAME)
+
+        self.engine._do_hook.assert_has_calls([
+            mock.call("post-release-start"),
+        ])
+
+    def test_pre_release_publish_hook(self):
+        self._setup_engine()
+        self.engine._do_hook = mock.Mock()
+        with mock.patch("git.remote.Remote.push"):
+            self.engine._start_release(self.BRANCH_NAME)
+            with mock.patch("git.remote.Remote.fetch"):
+                self.engine._publish_release(
+                    self.BRANCH_NAME,
+                    delete_release_branch=False,
+                    tag_label="NOTHING",
+                    tag_message="NOTHING",
+                )
+
+        self.engine._do_hook.assert_has_calls([
+            mock.call("pre-release-publish"),
+        ])
+
+    def test_post_hotfix_start_hook(self):
+        self._setup_engine()
+        self.engine._do_hook = mock.Mock()
+        with mock.patch("git.remote.Remote.push"):
+            with mock.patch("git.remote.Remote.fetch"):
+                self.engine._start_hotfix(self.BRANCH_NAME)
+
+        self.engine._do_hook.assert_has_calls([
+            mock.call("post-hotfix-start"),
+        ])
+
+    def test_pre_hotfix_publish_hook(self):
+        self._setup_engine()
+        self.engine._do_hook = mock.Mock()
+        with mock.patch("git.remote.Remote.push"):
+            with mock.patch("git.remote.Remote.fetch"):
+                self.engine._start_hotfix(self.BRANCH_NAME)
+                self.engine._publish_hotfix(
+                    self.BRANCH_NAME,
+                    delete_hotfix_branch=False,
+                    tag_label="NOTHING",
+                    tag_message="NOTHING",
+                )
+
+        self.engine._do_hook.assert_has_calls([
+            mock.call("pre-hotfix-publish"),
+        ])
 
 
 class RemoteFindingTestCase(OfflineTestCase):
@@ -429,14 +537,14 @@ class RemoteFindingTestCase(OfflineTestCase):
     def test_origin_is_origin(self):
         origin_name = id_generator()
         self.repo.create_remote(origin_name, id_generator())
-        self.engine = Engine(skip_auth=True, debug=0)
+        self.engine = Engine(offline=True, debug=0)
         self._do_setup_things(origin=origin_name)
 
         self.assertEqual(self.engine.origin, getattr(self.repo.remotes, origin_name))
 
     def test_get_origin_no_origin(self):
         origin_name = id_generator()
-        self.engine = Engine(skip_auth=True, debug=0)
+        self.engine = Engine(offline=True, debug=0)
         self._do_setup_things(origin=origin_name)
 
         with self.assertRaises(NoSuchRemote):
@@ -445,13 +553,13 @@ class RemoteFindingTestCase(OfflineTestCase):
     def test_canon_is_canon(self):
         canon_name = id_generator()
         self.repo.create_remote(canon_name, id_generator())
-        self.engine = Engine(skip_auth=True, debug=0)
+        self.engine = Engine(offline=True, debug=0)
         self._do_setup_things(canon=canon_name)
         self.assertEqual(self.engine.canon, getattr(self.repo.remotes, canon_name))
 
     def test_get_canon_no_canon(self):
         canon_name = id_generator()
-        self.engine = Engine(skip_auth=True, debug=0)
+        self.engine = Engine(offline=True, debug=0)
         self._do_setup_things(canon=canon_name)
 
         with self.assertRaises(NoSuchRemote):
@@ -460,7 +568,7 @@ class RemoteFindingTestCase(OfflineTestCase):
     def test_remote_exists(self):
         canon_name = id_generator()
         self.repo.create_remote(canon_name, id_generator())
-        self.engine = Engine(skip_auth=True, debug=0)
+        self.engine = Engine(offline=True, debug=0)
         self._do_setup_things(canon=canon_name)
         self.assertTrue(self.engine._remote_exists(canon_name))
         self.assertFalse(self.engine._remote_exists(id_generator()))
@@ -470,14 +578,14 @@ class TestPullRequestCase(OnlineTestCase):
     def setUp(self):
         super(TestPullRequestCase, self).setUp()
 
-        self.engine = Engine(skip_auth=True, debug=0)
+        self.engine = Engine(offline=True, debug=0)
         self._do_setup_things()
         self.repo.create_remote(self.setup_args["origin"], id_generator())
         self.repo.create_remote(self.setup_args["canon"], id_generator())
-        self.engine = Engine(skip_auth=False, debug=0)
+        self.engine = Engine(offline=False, debug=0)
 
-        self.base = id_generator()
-        self.head = id_generator()
+        self.base = id_generator(chars=string.ascii_letters)
+        self.head = id_generator(chars=string.ascii_letters)
 
     def test_issue_match(self):
         issue_num = id_generator(chars=string.digits)

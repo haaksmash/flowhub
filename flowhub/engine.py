@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 import getpass
+import os
 import re
 import subprocess
 import tempfile
@@ -39,8 +40,9 @@ class NoSuchRemote(NoSuchObject): pass
 
 
 class Engine(object):
-    def __init__(self, debug=0, skip_auth=False):
+    def __init__(self, debug=0, offline=False, no_hooks=False):
         self.__debug = debug
+        self.no_hooks = no_hooks
         if self.__debug > 2:
             print "initing engine"
 
@@ -52,8 +54,8 @@ class Engine(object):
 
         self._gh = None
 
-        self.offline = skip_auth
-        if not skip_auth:
+        self.offline = offline
+        if not self.offline:
             if self.__debug > 0:
                 print "Authorizing engine..."
             if not self.do_auth():
@@ -346,7 +348,7 @@ class Engine(object):
 
         branch_name = "{}{}".format(
             self._cr.flowhub.prefix.feature,
-            name
+            name,
         )
         self._repo.create_head(
             branch_name,
@@ -374,13 +376,17 @@ class Engine(object):
                 ),
             ]
 
-        branch = [x for x in self._repo.branches if x.name == branch_name][0]
-
         # Checkout the branch.
+        branch = getattr(self._repo.branches, branch_name)
         branch.checkout()
+
         summary += [
             "Checked out branch {}".format(branch_name),
         ]
+
+        if not self.no_hooks:
+            if not self._do_hook("post-feature-start"):
+                return False
 
         return True
     create_feature = with_summary(_create_feature)
@@ -540,7 +546,21 @@ class Engine(object):
 
     abandon_feature = with_summary(_abandon_feature)
 
+    def _do_hook(self, name):
+        try:
+            subprocess.check_call(os.path.join(self._repo.git_dir, 'hooks', name))
+            return True
+        except OSError:
+            if self.__debug > 2:
+                print "No such hook: {}".format(name)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
     def _publish_feature(self, name, summary=None):
+
+        # hook: pre_feature_publish
+
         if summary is None:
             summary = []
         if name is None:
@@ -555,6 +575,10 @@ class Engine(object):
                 return
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
+
+        if not self.no_hooks:
+            if not self._do_hook("pre-feature-publish"):
+                return False
 
         branch_name = "{}{}".format(
             self._cr.flowhub.prefix.feature,
@@ -624,11 +648,14 @@ class Engine(object):
 
         return features
 
-    @with_summary
-    def start_release(self, name, summary=None):
+    def _start_release(self, name, summary=None):
         # checkout develop
         # if already release branch, abort.
         # checkout -b relase_prefix+branch_name
+
+        if summary is None:
+            summary = []
+
         if name is None:
             print "Please provide a release name."
             return
@@ -671,14 +698,21 @@ class Engine(object):
             "Pushed {} to {}".format(branch_name, self.canon.name),
         ]
 
-        branch = [x for x in self._repo.branches if x.name == branch_name][0]
-
         # Checkout the branch.
+        branch = getattr(self._repo.branches, branch_name)
         branch.checkout()
+
         summary += [
             "Checked out branch {}"
             "\n\nBump the release version now!".format(branch_name)
         ]
+
+        if not self.no_hooks:
+            if not self._do_hook("post-release-start"):
+                return False
+
+        return True
+    start_release = with_summary(_start_release)
 
     @with_summary
     def stage_release(self, summary=None):
@@ -690,8 +724,14 @@ class Engine(object):
             "\n\nLOL just kidding, this doesn't do anything."
         ]
 
-    @with_summary
-    def publish_release(self, name=None, delete_release_branch=True, summary=None):
+    def _publish_release(
+        self,
+        name=None,
+        delete_release_branch=True,
+        summary=None,
+        tag_label=None,
+        tag_message=None,
+    ):
         # fetch canon
         # checkout master
         # merge canon master
@@ -704,6 +744,13 @@ class Engine(object):
         # delete release branch
         # git push origin --delete name
         return_branch = self._repo.head.reference
+        if not self.no_hooks:
+            if not self._do_hook("pre-release-publish"):
+                return False
+
+        if summary is None:
+            summary = []
+
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
@@ -741,9 +788,14 @@ class Engine(object):
         ]
 
         # and tag
-        tag_message = raw_input("Message for this tag ({}): ".format(name))
+        if tag_label is None:
+            default_tag = name
+            tag_label = raw_input("Tag Label [{}]: ".format(default_tag)) or default_tag
+
+        if tag_message is None:
+            tag_message = raw_input("Message for this tag ({}): ".format(name))
         self._repo.create_tag(
-            path=name,
+            path=tag_label,
             ref=self.master,
             message=tag_message,
         )
@@ -786,6 +838,7 @@ class Engine(object):
         summary += [
             "Checked out branch {}".format(return_branch.name),
         ]
+    publish_release = with_summary(_publish_release)
 
     @with_summary
     def contribute_release(self, summary=None):
@@ -811,8 +864,10 @@ class Engine(object):
         else:
             head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
-        prs = [x for x in self.gh_canon.get_pulls('open') if x.head.label == head \
-                    or x.head.label == "{}:{}".format(self._gh.get_user().login, head)]
+        prs = [
+            x for x in self.gh_canon.get_pulls('open') if x.head.label == head
+            or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
+        ]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
             summary += [
@@ -838,7 +893,8 @@ class Engine(object):
         release_prefix = self._cr.flowhub.prefix.release
 
         for branch in self._repo.branches:
-            if (('u' in targets and branch.name.startswith(self._cr.flowhub.prefix.feature))
+            if (
+                ('u' in targets and branch.name.startswith(self._cr.flowhub.prefix.feature))
                 or ('r' in targets and branch.name.startswith(self._cr.flowhub.prefix.release))
                 or ('t' in targets and branch.name.startswith(self._cr.flowhub.prefix.hotfix))
             ):
@@ -893,11 +949,13 @@ class Engine(object):
                     print e
                     continue
 
-    @with_summary
-    def start_hotfix(self, name, issues=None, summary=None):
+    def _start_hotfix(self, name, issues=None, summary=None):
         # Checkout master
         # if already hotfix branch, abort.
         # checkout -b hotfix_prefix+branch_name
+        if summary is None:
+            summary = []
+
         if name is None:
             print "Please provide a release name."
             return
@@ -963,9 +1021,19 @@ class Engine(object):
             "Checked out branch {}"
             "\n\nBump the release version now!".format(branch_name),
         ]
+        if not self.no_hooks:
+            if not self._do_hook("post-hotfix-start"):
+                return False
+    start_hotfix = with_summary(_start_hotfix)
 
-    @with_summary
-    def publish_hotfix(self, name, summary=None, delete_hotfix_branch=True):
+    def _publish_hotfix(
+        self,
+        name,
+        summary=None,
+        delete_hotfix_branch=True,
+        tag_label=None,
+        tag_message=None,
+    ):
         # fetch canon
         # checkout master
         # merge --no-ff hotfix
@@ -975,6 +1043,11 @@ class Engine(object):
         # push --tags canon
         # delete hotfix branches
         return_branch = self._repo.head.reference
+        if not self.no_hooks:
+            if not self._do_hook("pre-hotfix-publish"):
+                return False
+        if summary is None:
+            summary = []
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a hotfix branch.
@@ -1011,9 +1084,13 @@ class Engine(object):
         # and tag
         issue_numbers = re.findall('(\d+)-', name)
         # cut off any issue numbers that may be there
-        default_tag = name[len('-'.join(issue_numbers)) + 1:] if issue_numbers else name
-        tag_label = raw_input("Tag Label [{}]: ".format(default_tag)) or default_tag
-        tag_message = raw_input("Message for this tag: ")
+
+        if tag_label is None:
+            default_tag = name[len('-'.join(issue_numbers)) + 1:] if issue_numbers else name
+            tag_label = raw_input("Tag Label [{}]: ".format(default_tag)) or default_tag
+
+        if tag_message is None:
+            tag_message = raw_input("Message for this tag: ")
         self._repo.create_tag(
             path=tag_label,
             ref=self.master,
@@ -1070,6 +1147,7 @@ class Engine(object):
         summary += [
             "Checked out branch {}".format(return_branch.name),
         ]
+    publish_hotfix = with_summary(_publish_hotfix)
 
     @with_summary
     def contribute_hotfix(self, summary=None):

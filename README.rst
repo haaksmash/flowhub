@@ -273,3 +273,18 @@ When the bug's been killed, Suzy runs
 If Suzy had been running a release branch at the time, the hotfix would have
 been merged into that instead of her trunk; the bug would have been killed in
 trunk when the release was published.
+
+Now with Hooks!
+~~~~~~~~~~~~~~~
+
+Flowhub now supports hooks, specifically:
+
+ * post-feature-start
+ * pre-feature-publish
+ * post-release-start
+ * pre-release-publish
+ * post-hotfix-create
+ * pre-hotfix-publish
+
+Each of these should live in the standard ``.git/hooks`` directory. They're
+exactly like git's normal hooks, but Flowhub runs them (rather than Git).
