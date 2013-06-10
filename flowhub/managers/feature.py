@@ -28,7 +28,7 @@ class FeatureManager(Manager):
             summary = []
 
         branch_name = "{}{}".format(
-            self._prefix.feature,
+            self._prefix,
             name,
         )
         branch = self.repo.create_head(
