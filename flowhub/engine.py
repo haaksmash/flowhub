@@ -384,10 +384,6 @@ class Engine(object):
             "Checked out branch {}".format(branch_name),
         ]
 
-        if not self.no_hooks:
-            if not self._do_hook("post-feature-start"):
-                return False
-
         return True
     create_feature = with_summary(_create_feature)
 
@@ -546,17 +542,6 @@ class Engine(object):
 
     abandon_feature = with_summary(_abandon_feature)
 
-    def _do_hook(self, name):
-        try:
-            subprocess.check_call(os.path.join(self._repo.git_dir, 'hooks', name))
-            return True
-        except OSError:
-            if self.__debug > 2:
-                print "No such hook: {}".format(name)
-            return True
-        except subprocess.CalledProcessError:
-            return False
-
     def _publish_feature(self, name, summary=None):
 
         # hook: pre_feature_publish
@@ -575,10 +560,6 @@ class Engine(object):
                 return
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
-
-        if not self.no_hooks:
-            if not self._do_hook("pre-feature-publish"):
-                return False
 
         branch_name = "{}{}".format(
             self._cr.flowhub.prefix.feature,
@@ -707,10 +688,6 @@ class Engine(object):
             "\n\nBump the release version now!".format(branch_name)
         ]
 
-        if not self.no_hooks:
-            if not self._do_hook("post-release-start"):
-                return False
-
         return True
     start_release = with_summary(_start_release)
 
@@ -744,9 +721,6 @@ class Engine(object):
         # delete release branch
         # git push origin --delete name
         return_branch = self._repo.head.reference
-        if not self.no_hooks:
-            if not self._do_hook("pre-release-publish"):
-                return False
 
         if summary is None:
             summary = []
@@ -806,11 +780,11 @@ class Engine(object):
         # merge into develop
         self.develop.checkout()
         self._repo.git.merge(
-            release_name,
+            self.master.name,
             no_ff=True,
         )
         summary += [
-            "Branch {} merged into {}".format(release_name, self.develop.name),
+            "Branch {} merged into {}".format(self.master.name, self.develop.name),
         ]
 
         # push to canon
@@ -1021,9 +995,6 @@ class Engine(object):
             "Checked out branch {}"
             "\n\nBump the release version now!".format(branch_name),
         ]
-        if not self.no_hooks:
-            if not self._do_hook("post-hotfix-start"):
-                return False
     start_hotfix = with_summary(_start_hotfix)
 
     def _publish_hotfix(
@@ -1043,9 +1014,7 @@ class Engine(object):
         # push --tags canon
         # delete hotfix branches
         return_branch = self._repo.head.reference
-        if not self.no_hooks:
-            if not self._do_hook("pre-hotfix-publish"):
-                return False
+
         if summary is None:
             summary = []
         if name is None:
@@ -1107,11 +1076,11 @@ class Engine(object):
             trunk = self.develop
         trunk.checkout()
         self._repo.git.merge(
-            hotfix_name,
+            self.master.name,
             no_ff=True,
         )
         summary += [
-            "Branch {} merged into {}".format(hotfix_name, trunk.name),
+            "Branch {} merged into {}".format(self.master.name, trunk.name),
         ]
 
         # push to canon
