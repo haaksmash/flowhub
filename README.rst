@@ -279,12 +279,12 @@ Now with Hooks!
 
 Flowhub now supports hooks, specifically:
 
- * post-feature-start
- * pre-feature-publish
- * post-release-start
- * pre-release-publish
- * post-hotfix-create
- * pre-hotfix-publish
+* post-feature-start
+* pre-feature-publish
+* post-release-start
+* pre-release-publish
+* post-hotfix-create
+* pre-hotfix-publish
 
 Each of these should live in the standard ``.git/hooks`` directory. They're
 exactly like git's normal hooks, but Flowhub runs them (rather than Git).
