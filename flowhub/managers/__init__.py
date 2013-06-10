@@ -19,10 +19,12 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
+
 class Manager(object):
 
     def __init__(
         self,
+        debug,
         prefix,
         origin,
         canon,
@@ -33,6 +35,7 @@ class Manager(object):
         offline
     ):
         self._prefix = prefix
+        self.DEBUG = debug
         self.origin = origin
         self.canon = canon
         self.master = master

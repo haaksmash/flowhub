@@ -42,9 +42,9 @@ class NoSuchRemote(NoSuchObject): pass
 
 class Engine(object):
     def __init__(self, debug=0, offline=False, no_hooks=False):
-        self.__debug = debug
+        self.DEBUG = debug
         self.no_hooks = no_hooks
-        if self.__debug > 2:
+        if self.DEBUG > 2:
             print "initing engine"
 
         # assume flowhub is called from within a git repository
@@ -55,7 +55,7 @@ class Engine(object):
 
         self.offline = offline
         if not self.offline:
-            if self.__debug > 0:
+            if self.DEBUG > 0:
                 print "Authorizing engine..."
             if not self.do_auth():
                 print "Authorization failed! Exiting."
@@ -79,15 +79,16 @@ class Engine(object):
                     )
                 )
         else:
-            if self.__debug > 0:
+            if self.DEBUG > 0:
                 print "Skipping auth - GitHub accesses will fail."
 
         self.feature = FeatureManager(
+            debug=self.DEBUG,
             prefix=self._cr.flowhub.prefix.feature,
-            origin=self._cr.flowhub.structure.origin,
-            canon=self._cr.flowhub.structure.canon,
-            master=self._cr.flowhub.structure.master,
-            develop=self._cr.flowhub.structure.develop,
+            origin=self.origin,
+            canon=self.canon,
+            master=self.master,
+            develop=self.develop,
             repo=self._repo,
             gh=self._gh,
             offline=self.offline,
@@ -98,7 +99,7 @@ class Engine(object):
         try:
             token = self._cr.flowhub.auth.token
             self._gh = Github(token)
-            if self.__debug > 0:
+            if self.DEBUG > 0:
                 print "GitHub Engine authorized by token in settings."
         except AttributeError:
             print (
@@ -130,14 +131,14 @@ class Engine(object):
                     return False
 
         token = auth.token
-        if self.__debug > 2:
+        if self.DEBUG > 2:
             print "Token generated: ", token
         # set the token globally, rather than on the repo level.
         authing = subprocess.check_output(
             'git config --global --add flowhub.auth.token {}'.format(token),
             shell=True,
         ).strip()
-        if self.__debug > 2:
+        if self.DEBUG > 2:
             print "result of config set:", authing
 
         return True
@@ -154,7 +155,7 @@ class Engine(object):
         hotfix,
     ):
         cw = self._repo.config_writer()
-        if self.__debug > 2:
+        if self.DEBUG > 2:
             print "Begin repo setup"
         if not cw.has_section('flowhub "structure"'):
             cw.add_section('flowhub "structure"')
@@ -187,12 +188,12 @@ class Engine(object):
         self._cr = Configurator(self._repo.config_reader())
 
     def _branch_exists(self, branch_name):
-        if self.__debug > 2:
+        if self.DEBUG > 2:
             print "Checking for existence of branch {}".format(branch_name)
         return getattr(self._repo.heads, branch_name, None) is not None
 
     def _remote_exists(self, repo_name):
-        if self.__debug > 2:
+        if self.DEBUG > 2:
             print "Checking for existence of remote {}".format(repo_name)
         return getattr(self._repo.remotes, repo_name, None) is not None
 
@@ -205,14 +206,14 @@ class Engine(object):
     @property
     def develop(self):
         develop_name = self._cr.flowhub.structure.develop
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "finding develop branch {}".format(develop_name)
         return self.__get_branch_by_name(develop_name)
 
     @property
     def master(self):
         master_name = self._cr.flowhub.structure.master
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "finding master branch {}".format(master_name)
         return self.__get_branch_by_name(master_name)
 
@@ -225,14 +226,14 @@ class Engine(object):
     @property
     def origin(self):
         origin_name = self._cr.flowhub.structure.origin
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "finding origin repo {}".format(origin_name)
         return self.__get_remote_by_name(origin_name)
 
     @property
     def canon(self):
         canon_name = self._cr.flowhub.structure.canon
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "finding canon repo {}".format(canon_name)
         return self.__get_remote_by_name(canon_name)
 
@@ -274,7 +275,7 @@ class Engine(object):
         if repo is None:
             repo = self.gh_canon
 
-        if self.__debug > 1:
+        if self.DEBUG > 1:
             print "setting up new pull-request"
 
         component_name = head.split('/')[-1]
@@ -294,7 +295,7 @@ class Engine(object):
         if not is_issue:
             issue = self._open_issue(return_values=True)
 
-            if self.__debug > 1:
+            if self.DEBUG > 1:
                 print (issue.title, issue.body, base, head)
 
         else:
@@ -351,7 +352,7 @@ class Engine(object):
             print "please provide a feature name or an issue number."
             return
 
-        if self.__debug > 0:
+        if self.DEBUG > 0:
             print "switching to a feature branch..."
 
         if name is not None:
@@ -460,7 +461,7 @@ class Engine(object):
             name = name.replace(self._cr.flowhub.prefix.feature, '')
             return_branch = self.develop
 
-        if self.__debug > 0:
+        if self.DEBUG > 0:
             print "Abandoning feature branch..."
 
         # checkout develop
@@ -609,7 +610,7 @@ class Engine(object):
             print "You already have a release in the works - please finish that one."
             return
 
-        if self.__debug > 0:
+        if self.DEBUG > 0:
             print "Creating new release branch..."
 
         # checkout develop
@@ -630,7 +631,7 @@ class Engine(object):
             ),
         ]
 
-        if self.__debug > 0:
+        if self.DEBUG > 0:
             print "Adding a tracking branch to your GitHub repo"
         self.canon.push(
             "{0}:{0}".format(branch_name),
@@ -903,7 +904,7 @@ class Engine(object):
                 "You already have a hotfix in the works - please finish that one."
             )
 
-        if self.__debug > 0:
+        if self.DEBUG > 0:
             print "Creating new hotfix branch..."
 
         # checkout develop
@@ -937,7 +938,7 @@ class Engine(object):
             ),
         ]
 
-        if self.__debug > 0:
+        if self.DEBUG > 0:
             print "Adding a tracking branch to your GitHub repo"
         self.canon.push(
             "{0}:{0}".format(branch_name),
@@ -1154,7 +1155,7 @@ class Engine(object):
         descr_f.file.write(
             "\n\n# Write your description above. Remember - you can use GitHub markdown syntax!"
         )
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "Temp file: ", descr_f.name
         # regardless, close the tempfile.
         descr_f.close()
@@ -1165,11 +1166,11 @@ class Engine(object):
                 shell=True
             )
         except OSError:
-            if self.__debug > 2:
+            if self.DEBUG > 2:
                 print "Hmm...are you on Windows?"
             editor_result = 126
 
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "result of $EDITOR: ", editor_result
 
         if editor_result == 0:
@@ -1188,7 +1189,7 @@ class Engine(object):
                 "Description (remember, you can use GitHub markdown):\n"
             )
 
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "Description used:\n", body
 
         issue = self._gh_repo.create_issue(

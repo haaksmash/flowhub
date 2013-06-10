@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from managers import Manager
 
+
 class FeatureManager(Manager):
 
     def start(self, name, with_tracking=False, summary=None):
@@ -44,8 +45,9 @@ class FeatureManager(Manager):
 
         # can't create a tracking branch if we're offline
         if not self.offline and with_tracking:
-            if self.__debug > 0:
+            if self.DEBUG > 0:
                 print "Adding a tracking branch to your GitHub repo"
+
             self.repo.git.push(
                 self.origin,
                 branch_name,
