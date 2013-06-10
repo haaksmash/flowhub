@@ -240,8 +240,10 @@ def handle_issue_call(args, engine):
 def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
-    parser.add_argument('--no-gh', action='store_true', default=False,
+    parser.add_argument('--offline', action='store_true', default=False,
         help='do not talk to GitHub',)
+    parser.add_argument('--no-verify', action='store_true', default=False,
+        help='do not call any hooks',)
     parser.add_argument('--version', action='version',
         version=('flowhub v{}'.format(__version__)))
 
@@ -381,7 +383,7 @@ def run():
         return
 
     else:
-        e = Engine(debug=args.verbosity, offline=args.no_gh)
+        e = Engine(debug=args.verbosity, offline=args.offline)
 
     if args.subparser == 'feature':
         handle_feature_call(args, e)
