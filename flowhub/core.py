@@ -33,7 +33,7 @@ def future_proof_print(x):
     print(x)
 
 
-def _do_hook(args, engine, hook_name, *hook_args):
+def do_hook(args, engine, hook_name, *hook_args):
     if args.no_verify:
         return True
 
@@ -114,7 +114,7 @@ def handle_feature_call(args, engine):
             name=args.name,
             create_tracking_branch=args.track,
         )
-        _do_hook(args, engine, "post-feature-start", args.name)
+        do_hook(args, engine, "post-feature-start")
 
     elif args.action == 'work':
         if not args.issue:
@@ -123,7 +123,7 @@ def handle_feature_call(args, engine):
             engine.work_feature(issue=args.identifier)
 
     elif args.action == 'publish':
-        if not _do_hook(args, engine, "pre-feature-publish", args.name):
+        if not do_hook(args, engine, "pre-feature-publish"):
             return False
         try:
             engine.publish_feature(name=args.name)
@@ -162,9 +162,9 @@ def handle_hotfix_call(args, engine):
             name=args.name,
             issues=args.issue_numbers,
         )
-        _do_hook(args, engine, "post-hotfix-start", args.name)
+        do_hook(args, engine, "post-hotfix-start", args.name)
     elif args.action == 'publish':
-        if not _do_hook(args, engine, "pre-hotfix-publish", args.name):
+        if not do_hook(args, engine, "pre-hotfix-publish"):
             return False
 
         engine.publish_hotfix(
@@ -184,10 +184,10 @@ def handle_release_call(args, engine):
         engine.start_release(
             name=args.name,
         )
-        _do_hook(args, engine, "post-release-start", args.name)
+        do_hook(args, engine, "post-release-start", args.name)
 
     elif args.action == 'publish':
-        if not _do_hook(args, engine, "pre-release-publish"):
+        if not do_hook(args, engine, "pre-release-publish"):
             return False
 
         engine.publish_release(
