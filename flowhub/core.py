@@ -141,11 +141,13 @@ def handle_feature_call(args, engine):
         try:
             engine.accept_feature(
                 name=args.name,
+                delete_feature_branch=(not args.no_delete),
             )
         except AssertionError:
             # see #14
             engine.accept_feature(
                 name=args.name,
+                delete_feature_branch=(not args.no_delete),
             )
     elif args.action == 'list':
         engine.list_features()
@@ -304,6 +306,8 @@ def run():
     faccepted.add_argument('name', nargs='?',
         default=None,
         help="name of the accepted feature. If not given, assumes current feature")
+    faccepted.add_argument('--no-delete', action='store_true', default=False,
+        help="don't delete the accepted feature branch")
     feature_subs.add_parser('list',
         help='list the feature names on this repository')
 
