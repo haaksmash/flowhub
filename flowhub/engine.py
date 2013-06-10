@@ -346,41 +346,25 @@ class Engine(object):
         return True
     create_feature = with_summary(_create_feature)
 
-    def work_feature(self, name=None, issue=None):
+    def work_feature(self, name=None):
         """Simply checks out the feature branch for the named feature."""
-        if name is None and issue is None:
-            print "please provide a feature name or an issue number."
+        if name is None:
+            print "please provide a feature name."
             return
 
-        if self.DEBUG > 0:
-            print "switching to a feature branch..."
+        branches = self.feature.fuzzy_get(name)
 
-        if name is not None:
-            branch_name = "{}{}".format(
-                self._cr.flowhub.prefix.feature,
-                name
-            )
+        if len(branches) == 1:
+            branches[0].checkout()
+            print "switched to branch '{}'".format(branches[0].name)
 
-        elif issue is not None:
-            branch_name = None
-            for branch in self._repo.branches:
-                if not branch.name.startswith(self._cr.flowhub.prefix.feature):
-                    continue
-
-                fname = branch.name[len(self._cr.flowhub.prefix.feature):]
-                if fname.startswith(str(issue)):
-                    branch_name = branch.name
-                    break
-
-        branches = [x for x in self._repo.branches if x.name == branch_name]
-        if branches:
-            branch = branches[0]
-
-            branch.checkout()
-            print "Switched to branch '{}'".format(branch.name)
+        elif len(branches) > 1:
+            print "multiple branches found:"
+            for branch in branches:
+                print "\t{}".format(branch)
 
         else:
-            print "No feature with name {}".format(name)
+            print "No feature starts with {}".format(name)
             return
 
     def _accept_feature(self, name=None, delete_feature_branch=True, summary=None):

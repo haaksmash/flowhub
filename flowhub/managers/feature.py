@@ -62,4 +62,15 @@ class FeatureManager(Manager):
 
         return branch
 
+    def fuzzy_get(self, name):
+        branch_name = "{}{}".format(
+            self._prefix,
+            name
+        )
 
+        try:
+            branches = [getattr(self.repo.branches, branch_name)]
+        except AttributeError:
+            branches = [b for b in self.repo.branches if b.startswith(branch_name)]
+
+        return branches
