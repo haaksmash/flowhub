@@ -310,10 +310,11 @@ def run():
     )
     rcontribute = release_subs.add_parser('contribute')
 
-    rabandon = release_subs.add_parser('abandon',
-        help='abort a release branch')
-    rabandon.add_argument('name', nargs='?',
-        help='name of release to abandon. if not specified, current branch is assumed.')
+    # rabandon = release_subs.add_parser('abandon',
+    #     help='abort a release branch')
+    # rabandon.add_argument('name', nargs='?',
+    #     help='name of release to abandon. if not specified, current branch is assumed.')
+
     #
     # Cleanup
     #
