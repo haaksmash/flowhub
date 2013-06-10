@@ -578,8 +578,7 @@ class Engine(object):
 
         if not self.no_hooks:
             if not self._do_hook("pre-feature-publish"):
-                print "aborted by hook"
-                return
+                return False
 
         branch_name = "{}{}".format(
             self._cr.flowhub.prefix.feature,
