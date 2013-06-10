@@ -31,6 +31,7 @@ from github import Github, GithubException
 
 from configurator import Configurator, ImproperlyConfigured
 from decorators import with_summary
+from managers.feature import FeatureManager
 
 
 class NoSuchObject(Exception): pass
@@ -48,7 +49,6 @@ class Engine(object):
 
         # assume flowhub is called from within a git repository
         self._repo = git.Repo(".")
-
         self._cr = Configurator(self._repo.config_reader())
 
         self._gh = None
@@ -81,6 +81,17 @@ class Engine(object):
         else:
             if self.__debug > 0:
                 print "Skipping auth - GitHub accesses will fail."
+
+        self.feature = FeatureManager(
+            prefix=self._cr.flowhub.prefix.feature,
+            origin=self._cr.flowhub.structure.origin,
+            canon=self._cr.flowhub.structure.canon,
+            master=self._cr.flowhub.structure.master,
+            develop=self._cr.flowhub.structure.develop,
+            repo=self._repo,
+            gh=self._gh,
+            offline=self.offline,
+        )
 
     def do_auth(self):
         """Generates the authorization to do things with github."""
@@ -152,6 +163,7 @@ class Engine(object):
 
         cw.set('flowhub "structure"', 'origin', origin)
         cw.set('flowhub "structure"', 'canon', canon)
+
         cw.set('flowhub "structure"', 'master', master)
 
         if not self._branch_exists(master):
@@ -310,7 +322,7 @@ class Engine(object):
 
         return pr
 
-    def _create_feature(self, name=None, create_tracking_branch=True, summary=None):
+    def _create_feature(self, name=None, with_tracking=True, summary=None):
         if name is None:
             print "Please provide a feature name."
             return False
@@ -318,48 +330,16 @@ class Engine(object):
         if summary is None:
             summary = []
 
-        if self.__debug > 0:
-            print "Creating new feature branch..."
-        # Checkout develop
-        # checkout -b feature_prefix+branch_name
-        # push -u origin feature_prefix+branch_name
-
-        branch_name = "{}{}".format(
-            self._cr.flowhub.prefix.feature,
+        branch = self.feature.start(
             name,
+            with_tracking,
+            summary,
         )
-        self._repo.create_head(
-            branch_name,
-            commit=self.develop,  # Requires a develop branch.
-        )
-        summary += [
-            "New branch {} created, from branch {}".format(
-                branch_name,
-                self._cr.flowhub.structure.develop,
-            )
-        ]
 
-        if not self.offline and create_tracking_branch:
-            if self.__debug > 0:
-                print "Adding a tracking branch to your GitHub repo"
-            self._repo.git.push(
-                self._cr.flowhub.structure.origin,
-                branch_name,
-                set_upstream=True
-            )
-            summary += [
-                "Created a remote tracking branch on {} for {}".format(
-                    self.origin.name,
-                    branch_name,
-                ),
-            ]
-
-        # Checkout the branch.
-        branch = getattr(self._repo.branches, branch_name)
         branch.checkout()
 
         summary += [
-            "Checked out branch {}".format(branch_name),
+            "Checked out branch {}".format(branch.name),
         ]
 
         return True

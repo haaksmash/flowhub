@@ -112,7 +112,7 @@ def handle_feature_call(args, engine):
             args.name = "{}-{}".format(args.issue_number, args.name)
         engine.create_feature(
             name=args.name,
-            create_tracking_branch=args.track,
+            with_tracking=args.track,
         )
         do_hook(args, engine, "post-feature-start")
 
