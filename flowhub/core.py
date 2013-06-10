@@ -27,14 +27,18 @@ from engine import Engine
 __version__ = "0.4.6"
 
 
-def handle_init_call(args, engine, input_func=raw_input):
+def future_proof_print(x):
+    print(x)
+
+
+def handle_init_call(args, engine, input_func=raw_input, output_func=future_proof_print):
     if args.verbosity > 2:
-        print "handling init"
+        output_func("handling init")
 
     # doesn't do anything but setup.
     # Setup was already done, during engine construction.
     if args.verbosity > 2:
-        print "Begin repo setup"
+        output_func("Begin repo setup")
 
     name = input_func(
         "Name of the GitHub repository for this flowhub: "
@@ -59,14 +63,13 @@ def handle_init_call(args, engine, input_func=raw_input):
 
     master = input_func("Name of the stable branch [master]: ") or 'master'
     if not engine._branch_exists(master):
-        print "\tCreating branch {}".format(master)
+        output_func("\tCreating branch {}".format(master))
         engine._repo.create_head(master)
 
     develop = input_func("Name of the development branch [develop]: ") or 'develop'
     if not engine._branch_exists(master):
-        print "\tCreating branch {}".format(develop)
+        output_func("\tCreating branch {}".format(develop))
         engine._repo.create_head(master)
-
 
     feature = input_func("Prefix for feature branches [feature/]: ") or 'feature/'
     release = input_func("Prefix for release branches [release/]: ") or "release/"
@@ -342,12 +345,12 @@ def run():
 
     # Force initialization to run offline.
     if args.subparser == 'init':
-        e = Engine(debug=args.verbosity, skip_auth=True)
+        e = Engine(debug=args.verbosity, offline=True)
         handle_init_call(args, e)
         return
 
     else:
-        e = Engine(debug=args.verbosity, skip_auth=args.no_gh)
+        e = Engine(debug=args.verbosity, offline=args.no_gh)
 
     if args.subparser == 'feature':
         handle_feature_call(args, e)
