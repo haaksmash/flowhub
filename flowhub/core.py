@@ -20,6 +20,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 import argparse
+import os
+import subprocess
 
 from engine import Engine
 
@@ -29,6 +31,21 @@ __version__ = "0.4.6"
 
 def future_proof_print(x):
     print(x)
+
+
+def do_hook(args, engine, hook_name, *hook_args):
+    if args.no_verify:
+        return True
+
+    try:
+        subprocess.check_call((os.path.join(engine._repo.git_dir, 'hooks', hook_name),) + hook_args)
+        return True
+    except OSError:
+        if args.verbosity > 2:
+            print "No such hook: {}".format(hook_name)
+        return True
+    except subprocess.CalledProcessError:
+        return False
 
 
 def handle_init_call(args, engine, input_func=raw_input, output_func=future_proof_print):
@@ -97,6 +114,7 @@ def handle_feature_call(args, engine):
             name=args.name,
             create_tracking_branch=args.track,
         )
+        do_hook(args, engine, "post-feature-start")
 
     elif args.action == 'work':
         if not args.issue:
@@ -105,12 +123,15 @@ def handle_feature_call(args, engine):
             engine.work_feature(issue=args.identifier)
 
     elif args.action == 'publish':
+        if not do_hook(args, engine, "pre-feature-publish"):
+            return False
         try:
             engine.publish_feature(name=args.name)
         except AssertionError:
             # This is janky as shit, but running twice fixes it.
             # see #14
             engine.publish_feature(name=args.name)
+
     elif args.action == 'abandon':
         engine.abandon_feature(
             name=args.name,
@@ -141,7 +162,11 @@ def handle_hotfix_call(args, engine):
             name=args.name,
             issues=args.issue_numbers,
         )
+        do_hook(args, engine, "post-hotfix-start", args.name)
     elif args.action == 'publish':
+        if not do_hook(args, engine, "pre-hotfix-publish"):
+            return False
+
         engine.publish_hotfix(
             name=args.name,
         )
@@ -159,7 +184,12 @@ def handle_release_call(args, engine):
         engine.start_release(
             name=args.name,
         )
+        do_hook(args, engine, "post-release-start", args.name)
+
     elif args.action == 'publish':
+        if not do_hook(args, engine, "pre-release-publish"):
+            return False
+
         engine.publish_release(
             name=args.name,
             delete_release_branch=(not args.no_cleanup),
@@ -216,7 +246,7 @@ def run():
         version=('flowhub v{}'.format(__version__)))
 
     subparsers = parser.add_subparsers(dest="subparser")
-    init = subparsers.add_parser('init',
+    subparsers.add_parser('init',
         help="set up a repository to use flowhub",)
     feature = subparsers.add_parser('feature',
         help="do feature-related things",)
@@ -267,7 +297,7 @@ def run():
     faccepted.add_argument('name', nargs='?',
         default=None,
         help="name of the accepted feature. If not given, assumes current feature")
-    flist = feature_subs.add_parser('list',
+    feature_subs.add_parser('list',
         help='list the feature names on this repository')
 
     #
@@ -286,7 +316,7 @@ def run():
         help="publish the hotfix to production and trunk")
     hpublish.add_argument('name', nargs='?',
         help="name of hotfix to publish. If not given, uses current branch.")
-    hcontribute = hotfix_subs.add_parser('contribute',
+    hotfix_subs.add_parser('contribute',
         help='send this branch as a pull request to the current hotfix')
     #
     # Releases
@@ -297,7 +327,7 @@ def run():
         help="start a new release branch")
     rstart.add_argument('name', help="name (and tag) of the release branch.")
 
-    rstage = release_subs.add_parser('stage',
+    release_subs.add_parser('stage',
         help="send a release branch to a staging environment")
 
     rpublish = release_subs.add_parser('publish',
@@ -308,12 +338,13 @@ def run():
         default=False,
         help="do not delete the release branch after a successful publish",
     )
-    rcontribute = release_subs.add_parser('contribute')
+    release_subs.add_parser('contribute')
 
-    rabandon = release_subs.add_parser('abandon',
-        help='abort a release branch')
-    rabandon.add_argument('name', nargs='?',
-        help='name of release to abandon. if not specified, current branch is assumed.')
+    # rabandon = release_subs.add_parser('abandon',
+    #     help='abort a release branch')
+    # rabandon.add_argument('name', nargs='?',
+    #     help='name of release to abandon. if not specified, current branch is assumed.')
+
     #
     # Cleanup
     #
