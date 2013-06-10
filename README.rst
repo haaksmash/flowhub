@@ -292,15 +292,12 @@ exactly like git's normal hooks, but Flowhub runs them (rather than Git).
 Parameters for hooks
 ++++++++++++++++++++
 
-* post-feature-start
-  None.
-* pre-feature-publish
-  None.
+Some hooks are passed parameters (just as standard githooks are). This is what
+they are:
+
 * post-release-start
+
   Passed the name of the release.
-* pre-release-publish
-  None.
 * post-hotfix-start
+
   Passed the name of the hotfix.
-* pre-hotfix-publish
-  None.
