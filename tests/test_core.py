@@ -148,7 +148,7 @@ class FeatureCallTestCase(CoreTestCase):
             self.engine_mock.assert_has_calls([
                 mock.call.create_feature(
                     name=self.args.name,
-                    create_tracking_branch=self.args.track,
+                    with_tracking=self.args.track,
                 ),
             ])
 
@@ -164,7 +164,7 @@ class FeatureCallTestCase(CoreTestCase):
         self.engine_mock.assert_has_calls([
             mock.call.create_feature(
                 name=expected_name,
-                create_tracking_branch=self.args.track,
+                with_tracking=self.args.track,
             ),
         ])
 

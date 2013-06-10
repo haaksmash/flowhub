@@ -19,15 +19,12 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-from managers import Manager
+from flowhub.managers import Manager
 
 
 class FeatureManager(Manager):
 
-    def start(self, name, with_tracking=False, summary=None):
-        if summary is None:
-            summary = []
-
+    def start(self, name, summary, with_tracking=False):
         branch_name = "{}{}".format(
             self._prefix,
             name,
@@ -62,6 +59,12 @@ class FeatureManager(Manager):
 
         return branch
 
+    def get(self, name):
+        try:
+            return getattr(self.repo.branches, "{}{}".format(self._prefix, name))
+        except AttributeError:
+            return None
+
     def fuzzy_get(self, name):
         branch_name = "{}{}".format(
             self._prefix,
@@ -74,3 +77,81 @@ class FeatureManager(Manager):
             branches = [b for b in self.repo.branches if b.startswith(branch_name)]
 
         return branches
+
+    def accept(self, name, summary, with_delete):
+        self.canon.fetch()
+        summary += [
+            "Latest objects fetched from {}".format(self.canon.name),
+        ]
+        self.develop.checkout()
+        self._repo.git.merge(
+            "{}/{}".format(self.canon.name, self.develop.name),
+        )
+        summary += [
+            "Updated {}".format(self.develop.name),
+        ]
+
+        branch_name = "{}{}".format(
+            self._prefix,
+            name,
+        )
+
+        if with_delete:
+            self.repo.delete_head(
+                branch_name,
+            )
+            summary += [
+                "Deleted {} from local repository".format(branch_name),
+            ]
+
+            if not self.offline:
+                self.origin.push(
+                    branch_name,
+                    delete=True,
+                )
+                summary += [
+                    "Deleted {} from {}".format(branch_name, self.origin.name),
+                ]
+
+    def abandon(self, name, summary):
+        branch_name = "{}{}".format(
+            self._prefix,
+            name,
+        )
+
+        self.repo.delete_head(
+            branch_name,
+            force=True,
+        )
+        summary += [
+            "Deleted branch {} locally".format(
+                branch_name,
+            ),
+        ]
+
+        if not self.offline:
+            self._repo.git.push(
+                self.origin,
+                branch_name,
+                delete=True,
+                force=True,
+            )
+            summary[-1] += "and from remote {}".format(
+                self.origin,
+            )
+
+    def publish(self, name, summary):
+        branch_name = "{}{}".format(
+            self._prefix,
+            name,
+        )
+        self.repo.git.push(
+            self.origin,
+            branch_name,
+            set_upstream=True,
+        )
+        summary += [
+            "Updated {}/{}".format(self.origin, branch_name)
+        ]
+
+        return self.get(name)
