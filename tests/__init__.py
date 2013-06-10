@@ -33,8 +33,6 @@ TEST_DIR = os.getcwd()
 REPO_NAME = "the_repo"
 TEST_REPO = os.path.join(TEST_DIR, REPO_NAME)
 
-print TEST_REPO
-
 import string
 import random
 
