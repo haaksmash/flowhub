@@ -548,7 +548,7 @@ class Engine(object):
 
     def _do_hook(self, name, *args):
         try:
-            subprocess.check_call([os.path.join(self._repo.git_dir, 'hooks', name)] + args)
+            subprocess.check_call((os.path.join(self._repo.git_dir, 'hooks', name)) + args)
             return True
         except OSError:
             if self.__debug > 2:
