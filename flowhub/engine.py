@@ -32,6 +32,12 @@ from configurator import Configurator, ImproperlyConfigured
 from decorators import with_summary
 
 
+class NoSuchObject(Exception): pass
+
+class NoSuchBranch(NoSuchObject): pass
+class NoSuchRemote(NoSuchObject): pass
+
+
 class Engine(object):
     def __init__(self, debug=0, skip_auth=False):
         self.__debug = debug
@@ -42,11 +48,11 @@ class Engine(object):
         if not self._repo:
             return
 
-        self._cw = Configurator(self._repo.config_writer())
         self._cr = Configurator(self._repo.config_reader())
 
         self._gh = None
 
+        self.offline = skip_auth
         if not skip_auth:
             if self.__debug > 0:
                 print "Authorizing engine..."
@@ -55,16 +61,22 @@ class Engine(object):
                 return
 
             try:
-                self._gh_repo = self._gh.get_user().get_repo(self._cr.flowhub.structure.name)
+                self._gh_repo = self._gh.get_user().get_repo(
+                    self._cr.flowhub.structure.name
+                )
             except GithubException:
-                try:
-                    self._get_repo = [x for x in self._gh.get_user().get_repos() if x.name == self._cr.flowhub.structure.name][0]
-                except IndexError:
-                    raise ImproperlyConfigured("No repo with given name: {}".format(self._cr.flowhub.structure.name))
+                raise ImproperlyConfigured(
+                    "No repo with given name: {}".format(
+                        self._cr.flowhub.structure.name,
+                    )
+                )
 
             if self._gh.rate_limiting[0] < 100:
-                warnings.warn("You are close to exceeding your GitHub access "
-                    "rate; {} left out of {} initially".format(*self._gh.rate_limiting))
+                warnings.warn(
+                    "You are close to exceeding your GitHub access rate; {} left out of {}".format(
+                        *self._gh.rate_limiting
+                    )
+                )
         else:
             if self.__debug > 0:
                 print "Skipping auth - GitHub accesses will fail."
@@ -87,18 +99,6 @@ class Engine(object):
             # Refresh the readers
             self._cr = Configurator(self._repo.config_reader())
 
-        if self.__debug > 2:
-            print "Checking for repo setup"
-        if not hasattr(self._cr.flowhub, 'structure') or not hasattr(self._cr.flowhub.structure, 'name'):
-            print (
-                "This repository is not yet Flowhub-enabled. Let's take care of that now."
-            )
-            self.setup_repository_structure()
-            print '\n'.join((
-                "You can change these settings just like all git settings, using the\n",
-                "\tgit config\n",
-                "command."
-            ))
         return True
 
     def _create_token(self):
@@ -121,90 +121,107 @@ class Engine(object):
         if self.__debug > 2:
             print "Token generated: ", token
         # set the token globally, rather than on the repo level.
-        authing = subprocess.check_output('git config --global --add flowhub.auth.token {}'.format(token), shell=True).strip()
+        authing = subprocess.check_output(
+            'git config --global --add flowhub.auth.token {}'.format(token),
+            shell=True,
+        ).strip()
         if self.__debug > 2:
             print "result of config set:", authing
 
         return True
 
-    def setup_repository_structure(self):
+    def setup_repository_structure(
+        self,
+        name,
+        origin,
+        canon,
+        master,
+        develop,
+        feature,
+        release,
+        hotfix,
+    ):
+        cw = self._repo.config_writer()
         if self.__debug > 2:
             print "Begin repo setup"
-        if not hasattr(self._cw, 'flowhub') or not hasattr(self._cw.flowhub, 'structure'):
-            self._cw.add_section('flowhub "structure"')
+        if not cw.has_section('flowhub "structure"'):
+            cw.add_section('flowhub "structure"')
 
-        self._cw.flowhub.structure.name = raw_input("Name of the GitHub repository for this flowhub: ")
+        cw.set('flowhub "structure"', 'name', name)
 
-        self._cw.flowhub.structure.origin = raw_input("Name of your github remote [origin]: ") or 'origin'
-        if not self._ensure_remote_exists(self._cw.flowhub.structure.origin):
-            print "Whoops! That remote doesn't exist."
-            remote_url = raw_input("Remote url: ")
-            self._repo.create_remote(
-                self._cw.flowhub.structure.origin,
-                remote_url,
-            )
-        self._cw.flowhub.structure.canon = raw_input('Name of the organization remote [canon]: ') or 'canon'
-        if not self._ensure_remote_exists(self._cw.flowhub.structure.canon):
-            print "Whoops! That remote doesn't exist."
-            remote_url = raw_input("Remote url: ")
-            self._repo.create_remote(
-                self._cw.flowhub.structure.canon,
-                remote_url,
-            )
+        cw.set('flowhub "structure"', 'origin', origin)
+        cw.set('flowhub "structure"', 'canon', canon)
+        cw.set('flowhub "structure"', 'master', master)
 
-        self._cw.flowhub.structure.master = raw_input("Name of the stable branch [master]: ") or 'master'
-        if not self._ensure_branch_exists(self._cw.flowhub.structure.master):
-            print "\tCreating branch {}".format(self._cw.flowhub.structure.master)
-            self._repo.create_head(self._cw.flowhub.structure.master)
+        if not self._branch_exists(master):
+            print "\tCreating branch {}".format(master)
+            self._repo.create_head(master)
 
-        self._cw.flowhub.structure.develop = raw_input("Name of the development branch [develop]: ") or 'develop'
-        if not self._ensure_branch_exists(self._cw.flowhub.structure.master):
-            print "\tCreating branch {}".format(self._cw.flowhub.structure.develop)
-            self._repo.create_head(self._cw.flowhub.structure.master)
+        cw.set('flowhub "structure"', 'develop', develop)
+        if not self._branch_exists(develop):
+            print "\tCreating branch {}".format(develop)
+            self._repo.create_head(develop)
 
-        if not hasattr(self._cr.flowhub, 'prefix'):
-            self._cw.add_section('flowhub "prefix"')
+        if not cw.has_section('flowhub "prefix"'):
+            cw.add_section('flowhub "prefix"')
 
-        self._cw.flowhub.prefix.feature = raw_input("Prefix for feature branches [feature/]: ") or 'feature/'
-        self._cw.flowhub.prefix.release = raw_input("Prefix for release branches [release/]: ") or "release/"
-        self._cw.flowhub.prefix.hotfix = raw_input("Prefix for hotfix branches [hotfix/]: ") or "hotfix/"
+        cw.set('flowhub "prefix"', 'feature', feature)
+        cw.set('flowhub "prefix"', 'release', release)
+        cw.set('flowhub "prefix"', 'hotfix', hotfix)
+        cw.write()
 
         # Refresh the read-only reader.
         self._cr = Configurator(self._repo.config_reader())
 
-    def _ensure_branch_exists(self, branch_name):
+    def _branch_exists(self, branch_name):
         if self.__debug > 2:
             print "Checking for existence of branch {}".format(branch_name)
         return getattr(self._repo.heads, branch_name, None) is not None
 
-    def _ensure_remote_exists(self, repo_name):
+    def _remote_exists(self, repo_name):
         if self.__debug > 2:
             print "Checking for existence of remote {}".format(repo_name)
         return getattr(self._repo.remotes, repo_name, None) is not None
 
+    def __get_branch_by_name(self, name):
+        try:
+            return getattr(self._repo.heads, name)
+        except AttributeError:
+            raise NoSuchBranch(name)
+
     @property
     def develop(self):
+        develop_name = self._cr.flowhub.structure.develop
         if self.__debug > 3:
-            print "finding develop branch {}".format(self._cr.flowhub.structure.develop)
-        return [x for x in self._repo.heads if x.name == self._cr.flowhub.structure.develop][0]
+            print "finding develop branch {}".format(develop_name)
+        return self.__get_branch_by_name(develop_name)
 
     @property
     def master(self):
+        master_name = self._cr.flowhub.structure.master
         if self.__debug > 3:
-            print "finding master branch {}".format(self._cr.flowhub.structure.master)
-        return [x for x in self._repo.heads if x.name == self._cr.flowhub.structure.master][0]
+            print "finding master branch {}".format(master_name)
+        return self.__get_branch_by_name(master_name)
+
+    def __get_remote_by_name(self, name):
+        try:
+            return getattr(self._repo.remotes, name)
+        except AttributeError:
+            raise NoSuchRemote(name)
 
     @property
     def origin(self):
+        origin_name = self._cr.flowhub.structure.origin
         if self.__debug > 3:
-            print "finding origin repo {}".format(self._cr.flowhub.structure.origin)
-        return self._repo.remote(self._cr.flowhub.structure.origin)
+            print "finding origin repo {}".format(origin_name)
+        return self.__get_remote_by_name(origin_name)
 
     @property
     def canon(self):
+        canon_name = self._cr.flowhub.structure.canon
         if self.__debug > 3:
-            print "finding canon repo {}".format(self._cr.flowhub.structure.canon)
-        return self._repo.remote(self._cr.flowhub.structure.canon)
+            print "finding canon repo {}".format(canon_name)
+        return self.__get_remote_by_name(canon_name)
 
     @property
     def gh_canon(self):
@@ -220,8 +237,8 @@ class Engine(object):
     def release(self):
         # official version releases are named release/#.#.#
         releases = [x for x in self._repo.branches if x.name.startswith(
-                self._cr.flowhub.prefix.release,
-            )]
+            self._cr.flowhub.prefix.release,
+        )]
 
         if releases:
             return releases[0]
@@ -232,8 +249,8 @@ class Engine(object):
     def hotfix(self):
         # official version hotfixes are named release/#.#.#
         hotfixes = [x for x in self._repo.branches if x.name.startswith(
-                self._cr.flowhub.prefix.hotfix,
-            ) and re.match('\d.\d.\d', x.name.split('/')[-1])]
+            self._cr.flowhub.prefix.hotfix,
+        )]
 
         if hotfixes:
             return hotfixes[0]
@@ -245,10 +262,12 @@ class Engine(object):
         if self.__debug > 2:
             print "checking for repo-ness"
         try:
-            repo_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).strip()
+            repo_dir = subprocess.check_output(
+                "git rev-parse --show-toplevel",
+                shell=True,
+            ).strip()
         except subprocess.CalledProcessError:
-            print "You don't appear to be in a git repository."
-            return False
+            raise git.exc.InvalidGitRepositoryError("Not a valid git repository")
 
         if self.__debug > 2:
             print "repo directory: ", repo_dir
@@ -303,18 +322,21 @@ class Engine(object):
 
                 good_number = True
 
-            pr = repo.create_pull(
-                issue=issue,
-                base=base,
-                head=head,
-            )
+        pr = repo.create_pull(
+            issue=issue,
+            base=base,
+            head=head,
+        )
 
         return pr
 
     def _create_feature(self, name=None, create_tracking_branch=True, summary=None):
         if name is None:
             print "Please provide a feature name."
-            return
+            return False
+
+        if summary is None:
+            summary = []
 
         if self.__debug > 0:
             print "Creating new feature branch..."
@@ -337,7 +359,7 @@ class Engine(object):
             )
         ]
 
-        if create_tracking_branch:
+        if not self.offline and create_tracking_branch:
             if self.__debug > 0:
                 print "Adding a tracking branch to your GitHub repo"
             self._repo.git.push(
@@ -359,6 +381,9 @@ class Engine(object):
         summary += [
             "Checked out branch {}".format(branch_name),
         ]
+
+        return True
+    create_feature = with_summary(_create_feature)
 
     def work_feature(self, name=None, issue=None):
         """Simply checks out the feature branch for the named feature."""
@@ -397,18 +422,20 @@ class Engine(object):
             print "No feature with name {}".format(name)
             return
 
-    create_feature = with_summary(_create_feature)
+    def _accept_feature(self, name=None, summary=None):
+        if summary is None:
+            summary = []
 
-    @with_summary
-    def accept_feature(self, name=None, summary=None):
         return_branch = self._repo.head.reference
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.feature not in name:
-                print ("Please provide a feature name, or switch to "
-                    "the feature branch you want to mark as accepted.")
+                print (
+                    "Please provide a feature name, or switch to "
+                    "the feature branch you want to mark as accepted."
+                )
                 return
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
@@ -450,16 +477,21 @@ class Engine(object):
             "Checked out branch {}".format(return_branch.name),
         ]
 
-    @with_summary
-    def abandon_feature(self, name=None, summary=None):
+    accept_feature = with_summary(_accept_feature)
+
+    def _abandon_feature(self, name=None, summary=None):
+        if summary is None:
+            summary = []
         return_branch = self._repo.head.reference
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.feature not in name:
-                print ("Please provide a feature name, or switch to "
-                    "the feature branch you want to abandon.")
+                print (
+                    "Please provide a feature name, or switch to "
+                    "the feature branch you want to abandon."
+                )
                 return
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
@@ -484,33 +516,42 @@ class Engine(object):
             force=True,
         )
         summary += [
-            "Deleted branch {} locally and from remote {}".format(
+            "Deleted branch {} locally".format(
                 branch_name,
-                self._cr.flowhub.structure.origin,
             ),
         ]
 
-        self._repo.git.push(
-            self._cr.flowhub.structure.origin,
-            branch_name,
-            delete=True,
-            force=True,
-        )
+        if not self.offline:
+            self._repo.git.push(
+                self._cr.flowhub.structure.origin,
+                branch_name,
+                delete=True,
+                force=True,
+            )
+            summary[-1] += "and from remote {}".format(
+                self._cr.flowhub.structure.origin,
+            )
+
         summary += [
             "Checked out branch {}".format(
                 return_branch.name,
             ),
         ]
 
-    @with_summary
-    def publish_feature(self, name, summary=None):
+    abandon_feature = with_summary(_abandon_feature)
+
+    def _publish_feature(self, name, summary=None):
+        if summary is None:
+            summary = []
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.feature not in name:
-                print ("please provide a feature name, or switch to "
-                    "the feature branch you want to publish.")
+                print (
+                    "Please provide a feature name, or switch to "
+                    "the feature branch you want to publish."
+                )
                 return
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
@@ -520,9 +561,9 @@ class Engine(object):
             name,
         )
         self._repo.git.push(
-                self._cr.flowhub.structure.origin,
-                branch_name,
-                set_upstream=True,
+            self._cr.flowhub.structure.origin,
+            branch_name,
+            set_upstream=True,
         )
         summary += [
             "Updated {}/{}".format(self.origin.name, branch_name)
@@ -534,8 +575,11 @@ class Engine(object):
         else:
             head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
-        prs = [x for x in self.gh_canon.get_pulls('open') if x.head.label == head \
-                    or x.head.label == "{}:{}".format(self._gh.get_user().login, head)]
+        prs = [
+            x for x in self.gh_canon.get_pulls('open')
+            if x.head.label == head
+            or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
+        ]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
             summary += [
@@ -553,9 +597,13 @@ class Engine(object):
                 pr.issue_url,
             )
         ]
+    publish_feature = with_summary(_publish_feature)
 
     def list_features(self):
-        features = [b for b in self._repo.branches if b.name.startswith(self._cr.flowhub.prefix.feature)]
+        features = [
+            b for b in self._repo.branches
+            if b.name.startswith(self._cr.flowhub.prefix.feature)
+        ]
         if not features:
             print "There are no feature branches."
             return
@@ -574,6 +622,8 @@ class Engine(object):
 
             print display
 
+        return features
+
     @with_summary
     def start_release(self, name, summary=None):
         # checkout develop
@@ -583,7 +633,10 @@ class Engine(object):
             print "Please provide a release name."
             return
 
-        if any([x for x in self._repo.branches if x.name.startswith(self._cr.flowhub.prefix.release)]):
+        if any([
+            x for x in self._repo.branches
+                if x.name.startswith(self._cr.flowhub.prefix.release)
+        ]):
             print "You already have a release in the works - please finish that one."
             return
 
@@ -656,8 +709,10 @@ class Engine(object):
             # but only if it's a feature branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.release not in name:
-                print ("please provide a release name, or switch to "
-                    "the release branch you want to publish.")
+                print (
+                    "Please provide a release name, or switch to "
+                    "the release branch you want to publish."
+                )
                 return
 
             name = name.replace(self._cr.flowhub.prefix.release, '')
@@ -710,7 +765,11 @@ class Engine(object):
         self.canon.push()
         self.canon.push(tags=True)
         summary += [
-            "{}, {}, and tags have been pushed to {}".format(self.master.name, self.develop.name, self.canon.name),
+            "{}, {}, and tags have been pushed to {}".format(
+                self.master.name,
+                self.develop.name,
+                self.canon.name
+            ),
         ]
 
         if delete_release_branch:
@@ -741,9 +800,9 @@ class Engine(object):
 
         branch_name = self._repo.head.reference.name
         self._repo.git.push(
-                self._cr.flowhub.structure.origin,
-                branch_name,
-                set_upstream=True,
+            self._cr.flowhub.structure.origin,
+            branch_name,
+            set_upstream=True,
         )
 
         base = self.release.name
@@ -779,9 +838,10 @@ class Engine(object):
         release_prefix = self._cr.flowhub.prefix.release
 
         for branch in self._repo.branches:
-            if ('u' in targets and branch.name.startswith(self._cr.flowhub.prefix.feature))\
-                or ('r' in targets and branch.name.startswith(self._cr.flowhub.prefix.release))\
-                or ('t' in targets and branch.name.startswith(self._cr.flowhub.prefix.hotfix)):
+            if (('u' in targets and branch.name.startswith(self._cr.flowhub.prefix.feature))
+                or ('r' in targets and branch.name.startswith(self._cr.flowhub.prefix.release))
+                or ('t' in targets and branch.name.startswith(self._cr.flowhub.prefix.hotfix))
+            ):
                 # Feature branches get removed if they're fully merged in to something else.
                 # NOTE: this will delete branch references that have no commits in them.
                 if branch == current_branch:
@@ -842,7 +902,10 @@ class Engine(object):
             print "Please provide a release name."
             return
 
-        if any([x for x in self._repo.branches if x.name.startswith(self._cr.flowhub.prefix.hotfix)]):
+        if any([
+            x for x in self._repo.branches
+                if x.name.startswith(self._cr.flowhub.prefix.hotfix)
+        ]):
             print (
                 "You already have a hotfix in the works - please finish that one."
             )
