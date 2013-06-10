@@ -136,12 +136,6 @@ class OfflineSetupTestCase(OfflineTestCase):
         self.assertEqual(self.engine._cr.flowhub.prefix.release, args["release"])
         self.assertEqual(self.engine._cr.flowhub.prefix.hotfix, args["hotfix"])
 
-    def test_get_repo(self):
-        self.engine = Engine(offline=True)
-        self._do_setup_things()
-
-        self.assertEqual(self.repo, self.engine._get_repo())
-
 
 class OnlineSetupTestCase(OnlineTestCase):
     def teardown(self):

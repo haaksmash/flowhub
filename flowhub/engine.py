@@ -46,8 +46,10 @@ class Engine(object):
         if self.__debug > 2:
             print "initing engine"
 
-        self._repo = self._get_repo()
-        if not self._repo:
+        # assume they're calling flowhub from within a git repository.
+        try:
+            self._repo = git.Repo(".")
+        except git.exc.InvalidGitRepositoryError:
             return
 
         self._cr = Configurator(self._repo.config_reader())
@@ -258,27 +260,6 @@ class Engine(object):
             return hotfixes[0]
         else:
             return None
-
-    def _get_repo(self):
-        """Get the repository of this directory, or error out if not found"""
-        if self.__debug > 2:
-            print "checking for repo-ness"
-        try:
-            repo_dir = subprocess.check_output(
-                "git rev-parse --show-toplevel",
-                shell=True,
-            ).strip()
-        except subprocess.CalledProcessError:
-            raise git.exc.InvalidGitRepositoryError("Not a valid git repository")
-
-        if self.__debug > 2:
-            print "repo directory: ", repo_dir
-
-        if self.__debug > 2:
-            print "creating Repo object from dir:", repo_dir
-        repo = git.Repo(repo_dir)
-
-        return repo
 
     def _create_pull_request(self, base, head, repo=None):
         if repo is None:
