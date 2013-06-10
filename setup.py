@@ -38,6 +38,6 @@ setup(
     ],
     install_requires=[
         'GitPython == 0.3.2.RC1',
-        'PyGithub >= 1.8',
+        'PyGithub > 1.14',
     ],
 )

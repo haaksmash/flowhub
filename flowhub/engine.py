@@ -980,8 +980,7 @@ class Engine(object):
             # but only if it's a hotfix branch.
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.hotfix not in name:
-                print ("please provide a hotfix name, or switch to "
-                    "the hotfix branch you want to publish.")
+                print ("please provide a hotfix name, or switch to the hotfix branch you want to publish.")
                 return
 
             name = name.replace(self._cr.flowhub.prefix.hotfix, '')
@@ -1085,9 +1084,9 @@ class Engine(object):
 
         branch_name = self._repo.head.reference.name
         self._repo.git.push(
-                self._cr.flowhub.structure.origin,
-                branch_name,
-                set_upstream=True,
+            self._cr.flowhub.structure.origin,
+            branch_name,
+            set_upstream=True,
         )
 
         if self.canon == self.origin:
@@ -1099,8 +1098,10 @@ class Engine(object):
             base = self.hotfix.name
             head = "{}:{}".format(self._gh.get_user().login, branch_name)
 
-        prs = [x for x in gh_parent.get_pulls('open') if x.head.label == head \
-                    or x.head.label == "{}:{}".format(self._gh.get_user().login, head)]
+        prs = [
+            x for x in gh_parent.get_pulls('open') if x.head.label == head
+            or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
+        ]
         if prs:
             # If there's already a pull-request, don't bother hitting the gh api.
             summary += [
@@ -1119,8 +1120,14 @@ class Engine(object):
             )
         ]
 
-    def _open_issue(self, title=None, labels=None, create_branch=False,
-        summary=None, return_values=False):
+    def _open_issue(
+        self,
+        title=None,
+        labels=None,
+        create_branch=False,
+        summary=None,
+        return_values=False
+    ):
         if title is None:
             title = raw_input("Title for this issue: ")
         else:
