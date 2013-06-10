@@ -46,11 +46,8 @@ class Engine(object):
         if self.__debug > 2:
             print "initing engine"
 
-        # assume they're calling flowhub from within a git repository.
-        try:
-            self._repo = git.Repo(".")
-        except git.exc.InvalidGitRepositoryError:
-            return
+        # assume flowhub is called from within a git repository
+        self._repo = git.Repo(".")
 
         self._cr = Configurator(self._repo.config_reader())
 
@@ -405,7 +402,7 @@ class Engine(object):
             print "No feature with name {}".format(name)
             return
 
-    def _accept_feature(self, name=None, summary=None):
+    def _accept_feature(self, name=None, delete_feature_branch=True, summary=None):
         if summary is None:
             summary = []
 
@@ -441,19 +438,22 @@ class Engine(object):
             name,
         )
 
-        self._repo.delete_head(
-            branch_name,
-        )
-        summary += [
-            "Deleted {} from local repository".format(branch_name),
-        ]
-        self.origin.push(
-            branch_name,
-            delete=True,
-        )
-        summary += [
-            "Deleted {} from {}".format(branch_name, self.origin.name),
-        ]
+        if delete_feature_branch:
+            self._repo.delete_head(
+                branch_name,
+            )
+            summary += [
+                "Deleted {} from local repository".format(branch_name),
+            ]
+
+            if not self.offline:
+                self.origin.push(
+                    branch_name,
+                    delete=True,
+                )
+                summary += [
+                    "Deleted {} from {}".format(branch_name, self.origin.name),
+                ]
 
         return_branch.checkout()
         summary += [
