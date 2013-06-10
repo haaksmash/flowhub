@@ -78,6 +78,9 @@ class Configurator(object):
 
         return section
 
+    def write(self):
+        self._confer.write()
+
     def __getattr__(self, attr):
         if attr in self._sections:
             return self._sections[attr]
@@ -88,6 +91,13 @@ class Configurator(object):
 class Section(object):
     """Dotted-syntax access to nested settings"""
     def __init__(self, name, configurator, read_only=False, parent=None):
+        """
+            name: a string
+            configurator: a Configurator instance
+            read_only: boolean; is this a read_only section
+            parent: None or a Section instance
+        """
+
         self._name = name
         self._configurator = configurator
         self._subsections = OrderedDict()

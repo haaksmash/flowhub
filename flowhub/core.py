@@ -20,19 +20,88 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 import argparse
+import os
+import subprocess
 
 from engine import Engine
 
 
-__version__ = "0.4.6"
+__version__ = "0.5.0"
 
 
-def handle_init_call(args, engine):
+def future_proof_print(x):
+    print(x)
+
+
+def do_hook(args, engine, hook_name, *hook_args):
+    if args.no_verify:
+        return True
+
+    try:
+        subprocess.check_call((os.path.join(engine._repo.git_dir, 'hooks', hook_name),) + hook_args)
+        return True
+    except OSError:
+        if args.verbosity > 2:
+            print "No such hook: {}".format(hook_name)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def handle_init_call(args, engine, input_func=raw_input, output_func=future_proof_print):
     if args.verbosity > 2:
-        print "handling init"
+        output_func("handling init")
 
     # doesn't do anything but setup.
     # Setup was already done, during engine construction.
+    if args.verbosity > 2:
+        output_func("Begin repo setup")
+
+    name = input_func(
+        "Name of the GitHub repository for this flowhub: "
+    )
+
+    origin = input_func("Name of your github remote [origin]: ") or 'origin'
+    # if not engine._remote_exists(origin):
+    #     print "Whoops! That remote doesn't exist."
+    #     remote_url = input_func("Remote url: ")
+    #     engine._repo.create_remote(
+    #         origin,
+    #         remote_url,
+    #     )
+    canon = input_func('Name of the organization remote [canon]: ') or 'canon'
+    # if not engine._remote_exists(canon):
+    #     print "Whoops! That remote doesn't exist."
+    #     remote_url = input_func("Remote url: ")
+    #     self._repo.create_remote(
+    #         canon,
+    #         remote_url,
+    #     )
+
+    master = input_func("Name of the stable branch [master]: ") or 'master'
+    if not engine._branch_exists(master):
+        output_func("\tCreating branch {}".format(master))
+        engine._repo.create_head(master)
+
+    develop = input_func("Name of the development branch [develop]: ") or 'develop'
+    if not engine._branch_exists(master):
+        output_func("\tCreating branch {}".format(develop))
+        engine._repo.create_head(master)
+
+    feature = input_func("Prefix for feature branches [feature/]: ") or 'feature/'
+    release = input_func("Prefix for release branches [release/]: ") or "release/"
+    hotfix = input_func("Prefix for hotfix branches [hotfix/]: ") or "hotfix/"
+
+    engine.setup_repository_structure(
+        name,
+        origin,
+        canon,
+        master,
+        develop,
+        feature,
+        release,
+        hotfix,
+    )
 
 
 def handle_feature_call(args, engine):
@@ -45,6 +114,7 @@ def handle_feature_call(args, engine):
             name=args.name,
             create_tracking_branch=args.track,
         )
+        do_hook(args, engine, "post-feature-start")
 
     elif args.action == 'work':
         if not args.issue:
@@ -53,12 +123,15 @@ def handle_feature_call(args, engine):
             engine.work_feature(issue=args.identifier)
 
     elif args.action == 'publish':
+        if not do_hook(args, engine, "pre-feature-publish"):
+            return False
         try:
             engine.publish_feature(name=args.name)
         except AssertionError:
             # This is janky as shit, but running twice fixes it.
             # see #14
             engine.publish_feature(name=args.name)
+
     elif args.action == 'abandon':
         engine.abandon_feature(
             name=args.name,
@@ -89,10 +162,17 @@ def handle_hotfix_call(args, engine):
             name=args.name,
             issues=args.issue_numbers,
         )
+        do_hook(args, engine, "post-hotfix-start", args.name)
     elif args.action == 'publish':
+        if not do_hook(args, engine, "pre-hotfix-publish"):
+            return False
+
         engine.publish_hotfix(
             name=args.name,
         )
+
+        do_hook(args, engine, "post-hotfix-publish", args.name)
+
     elif args.action == 'contribute':
         engine.contribute_hotfix()
     else:
@@ -107,11 +187,18 @@ def handle_release_call(args, engine):
         engine.start_release(
             name=args.name,
         )
+        do_hook(args, engine, "post-release-start", args.name)
+
     elif args.action == 'publish':
+        if not do_hook(args, engine, "pre-release-publish"):
+            return False
+
         engine.publish_release(
             name=args.name,
             delete_release_branch=(not args.no_cleanup),
         )
+        do_hook(args, engine, "post-release-publish", args.name)
+
     elif args.action == 'contribute':
         engine.contribute_release()
     else:
@@ -158,13 +245,15 @@ def handle_issue_call(args, engine):
 def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
-    parser.add_argument('--no-gh', action='store_true', default=False,
+    parser.add_argument('--offline', action='store_true', default=False,
         help='do not talk to GitHub',)
+    parser.add_argument('--no-verify', action='store_true', default=False,
+        help='do not call any hooks',)
     parser.add_argument('--version', action='version',
         version=('flowhub v{}'.format(__version__)))
 
     subparsers = parser.add_subparsers(dest="subparser")
-    init = subparsers.add_parser('init',
+    subparsers.add_parser('init',
         help="set up a repository to use flowhub",)
     feature = subparsers.add_parser('feature',
         help="do feature-related things",)
@@ -215,7 +304,7 @@ def run():
     faccepted.add_argument('name', nargs='?',
         default=None,
         help="name of the accepted feature. If not given, assumes current feature")
-    flist = feature_subs.add_parser('list',
+    feature_subs.add_parser('list',
         help='list the feature names on this repository')
 
     #
@@ -234,7 +323,7 @@ def run():
         help="publish the hotfix to production and trunk")
     hpublish.add_argument('name', nargs='?',
         help="name of hotfix to publish. If not given, uses current branch.")
-    hcontribute = hotfix_subs.add_parser('contribute',
+    hotfix_subs.add_parser('contribute',
         help='send this branch as a pull request to the current hotfix')
     #
     # Releases
@@ -245,7 +334,7 @@ def run():
         help="start a new release branch")
     rstart.add_argument('name', help="name (and tag) of the release branch.")
 
-    rstage = release_subs.add_parser('stage',
+    release_subs.add_parser('stage',
         help="send a release branch to a staging environment")
 
     rpublish = release_subs.add_parser('publish',
@@ -256,12 +345,13 @@ def run():
         default=False,
         help="do not delete the release branch after a successful publish",
     )
-    rcontribute = release_subs.add_parser('contribute')
+    release_subs.add_parser('contribute')
 
-    rabandon = release_subs.add_parser('abandon',
-        help='abort a release branch')
-    rabandon.add_argument('name', nargs='?',
-        help='name of release to abandon. if not specified, current branch is assumed.')
+    # rabandon = release_subs.add_parser('abandon',
+    #     help='abort a release branch')
+    # rabandon.add_argument('name', nargs='?',
+    #     help='name of release to abandon. if not specified, current branch is assumed.')
+
     #
     # Cleanup
     #
@@ -291,7 +381,14 @@ def run():
     if args.verbosity > 2:
         print "Args: ", args
 
-    e = Engine(debug=args.verbosity, skip_auth=args.no_gh)
+    # Force initialization to run offline.
+    if args.subparser == 'init':
+        e = Engine(debug=args.verbosity, offline=True)
+        handle_init_call(args, e)
+        return
+
+    else:
+        e = Engine(debug=args.verbosity, offline=args.offline)
 
     if args.subparser == 'feature':
         handle_feature_call(args, e)
@@ -304,9 +401,6 @@ def run():
 
     elif args.subparser == 'cleanup':
         handle_cleanup_call(args, e)
-
-    elif args.subparser == 'init':
-        handle_init_call(args, e)
 
     elif args.subparser == 'issue':
         handle_issue_call(args, e)

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Copyright (C) 2012 Haak Saxberg
 
@@ -20,24 +19,23 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-from distutils.core import setup
-from setuptools import find_packages
+import getpass
 import os
 
-setup(
-    name="flowhub",
-    version='0.5.0',
-    description="Git-flow adapted for GitHub",
-    long_description=open("README.txt").read(),
-    author="Haak Saxberg",
-    author_email="haak.erling@gmail.com",
-    url="http://github.com/haaksmash/flowhub",
-    packages=find_packages(),
-    scripts=[
-        os.path.join('bin', 'flowhub')
-    ],
-    install_requires=[
-        'GitPython == 0.3.2.RC1',
-        'PyGithub > 1.14',
-    ],
-)
+try:
+    from local_creds import USERNAME, PASSWORD
+except ImportError:
+    # get USERNAME and PASSWORD, if not defined:
+    USERNAME = getpass.getuser()
+    PASSWORD = getpass.getpass()
+
+TEST_DIR = os.getcwd()
+REPO_NAME = "the_repo"
+TEST_REPO = os.path.join(TEST_DIR, REPO_NAME)
+
+import string
+import random
+
+
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for x in range(size))
