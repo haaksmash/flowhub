@@ -298,6 +298,12 @@ they are:
 * post-release-start
 
   Passed the name of the release.
+* post-release-publish
+
+  Passed the name of the release.
 * post-hotfix-start
+
+  Passed the name of the hotfix.
+* post-hotfix-publish
 
   Passed the name of the hotfix.

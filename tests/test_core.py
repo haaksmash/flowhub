@@ -268,6 +268,7 @@ class ReleaseCallTestCase(CoreTestCase):
 
             patch.assert_has_calls([
                 mock.call(self.args, self.engine_mock, "pre-release-publish"),
+                mock.call(self.args, self.engine_mock, "post-release-publish", self.args.name),
             ])
 
             self.engine_mock.assert_has_calls([
@@ -337,6 +338,8 @@ class HotfixCallTestCase(CoreTestCase):
 
             patch.assert_has_calls([
                 mock.call(self.args, self.engine_mock, 'pre-hotfix-publish'),
+                mock.call(self.args, self.engine_mock, 'post-hotfix-publish', self.args.name),
+
             ])
 
             self.engine_mock.assert_has_calls([

@@ -26,7 +26,7 @@ import subprocess
 from engine import Engine
 
 
-__version__ = "0.4.6"
+__version__ = "0.5.0"
 
 
 def future_proof_print(x):
@@ -170,6 +170,9 @@ def handle_hotfix_call(args, engine):
         engine.publish_hotfix(
             name=args.name,
         )
+
+        do_hook(args, engine, "post-hotfix-publish", args.name)
+
     elif args.action == 'contribute':
         engine.contribute_hotfix()
     else:
@@ -194,6 +197,8 @@ def handle_release_call(args, engine):
             name=args.name,
             delete_release_branch=(not args.no_cleanup),
         )
+        do_hook(args, engine, "post-release-publish", args.name)
+
     elif args.action == 'contribute':
         engine.contribute_release()
     else:
