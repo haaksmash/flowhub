@@ -59,9 +59,12 @@ class EngineTestCase(unittest.TestCase):
         self.release_m_mock = self.release_m_patch.start()
         self.hotfix_m_patch = mock.patch('flowhub.engine.HotfixManager')
         self.hotfix_m_mock = self.hotfix_m_patch.start()
+        self.pull_m_patch = mock.patch('flowhub.engine.PullRequestManager')
+        self.pull_m_mock = self.pull_m_patch.start()
 
     def tearDown(self):
         super(EngineTestCase, self).tearDown()
+        self.pull_m_patch.stop()
         self.hotfix_m_patch.stop()
         self.release_m_patch.stop()
         self.feature_m_patch.stop()
@@ -90,7 +93,7 @@ class OfflineTestCase(unittest.TestCase):
         )
 
         # setup the configurator mock
-        for key in ["origin", "canon", "master", "develop"]:
+        for key in ["name", "origin", "canon", "master", "develop"]:
             setattr(
                 self.configurator_mock().flowhub.structure,
                 key,
@@ -112,6 +115,8 @@ class OfflineTestCase(unittest.TestCase):
                 canon=mock.ANY,
                 master=mock.ANY,
                 develop=mock.ANY,
+                release=mock.ANY,
+                hotfix=mock.ANY,
                 repo=mock.ANY,
                 gh=None,
                 offline=True
@@ -126,6 +131,8 @@ class OfflineTestCase(unittest.TestCase):
                 canon=mock.ANY,
                 master=mock.ANY,
                 develop=mock.ANY,
+                release=mock.ANY,
+                hotfix=mock.ANY,
                 repo=mock.ANY,
                 gh=None,
                 offline=True
@@ -140,6 +147,24 @@ class OfflineTestCase(unittest.TestCase):
                 canon=mock.ANY,
                 master=mock.ANY,
                 develop=mock.ANY,
+                release=mock.ANY,
+                hotfix=mock.ANY,
+                repo=mock.ANY,
+                gh=None,
+                offline=True
+            ),
+        ])
+
+        self.pull_m_mock.assert_has_calls([
+            mock.call(
+                debug=self.engine.DEBUG,
+                prefix=self.repository_structure['name'],
+                origin=mock.ANY,
+                canon=mock.ANY,
+                master=mock.ANY,
+                develop=mock.ANY,
+                release=mock.ANY,
+                hotfix=mock.ANY,
                 repo=mock.ANY,
                 gh=None,
                 offline=True
@@ -172,7 +197,7 @@ class OnlineTestCase(unittest.TestCase):
         )
 
         # setup the configurator mock
-        for key in ["origin", "canon", "master", "develop"]:
+        for key in ["name", "origin", "canon", "master", "develop"]:
             setattr(
                 self.configurator_mock().flowhub.structure,
                 key,
@@ -194,6 +219,8 @@ class OnlineTestCase(unittest.TestCase):
                 canon=mock.ANY,
                 master=mock.ANY,
                 develop=mock.ANY,
+                release=mock.ANY,
+                hotfix=mock.ANY,
                 repo=mock.ANY,
                 gh=self.gh_mock(),
                 offline=False
@@ -208,6 +235,8 @@ class OnlineTestCase(unittest.TestCase):
                 canon=mock.ANY,
                 master=mock.ANY,
                 develop=mock.ANY,
+                release=mock.ANY,
+                hotfix=mock.ANY,
                 repo=mock.ANY,
                 gh=self.gh_mock(),
                 offline=False
@@ -222,6 +251,24 @@ class OnlineTestCase(unittest.TestCase):
                 canon=mock.ANY,
                 master=mock.ANY,
                 develop=mock.ANY,
+                release=mock.ANY,
+                hotfix=mock.ANY,
+                repo=mock.ANY,
+                gh=self.gh_mock(),
+                offline=False
+            ),
+        ])
+
+        self.pull_m_mock.assert_has_calls([
+            mock.call(
+                debug=self.engine.DEBUG,
+                prefix=self.repository_structure['name'],
+                origin=mock.ANY,
+                canon=mock.ANY,
+                master=mock.ANY,
+                develop=mock.ANY,
+                release=mock.ANY,
+                hotfix=mock.ANY,
                 repo=mock.ANY,
                 gh=self.gh_mock(),
                 offline=False
@@ -473,7 +520,7 @@ class OnlineReleaseTestCase(EngineTestCase, OnlineTestCase):
         self.assertTrue(self.engine._contribute_release())
 
         self.release_m_mock.assert_has_calls([
-            mock.call().contribute(self.git_mock().head),
+            mock.call().contribute(self.git_mock().head.reference, mock.ANY),
         ])
 
 
@@ -575,7 +622,7 @@ class OnlineHotfixTestCase(EngineTestCase, OnlineTestCase):
         self.assertTrue(self.engine._contribute_hotfix())
 
         self.release_m_mock.assert_has_calls([
-            mock.call().contribute(self.git_mock().head),
+            mock.call().contribute(self.git_mock().head.reference, mock.ANY),
         ])
 
     def test_contribute_on_wrong_branch_by_existance(self):
