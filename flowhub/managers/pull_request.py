@@ -38,7 +38,6 @@ def sanitize_refs(method):
 class PullRequestManager(Manager):
 
     def __init__(self, *args, **kwargs):
-        print kwargs
         super(PullRequestManager, self).__init__(*args, **kwargs)
 
         if self.offline:

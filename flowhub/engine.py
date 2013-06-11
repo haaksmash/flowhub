@@ -279,7 +279,6 @@ class Engine(object):
         return self.__get_branch_by_name(master_name)
 
     def __get_remote_by_name(self, name):
-        print name
         try:
             return getattr(self._repo.remotes, name)
         except AttributeError:

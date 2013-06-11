@@ -41,9 +41,10 @@ def do_hook(args, engine, hook_name, *hook_args):
         hook_args = tuple(str(a) for a in hook_args)
         subprocess.check_call((os.path.join(engine._repo.git_dir, 'hooks', hook_name),) + hook_args)
         return True
-    except OSError:
+    except OSError as e:
         if args.verbosity > 2:
             print "No such hook: {}".format(hook_name)
+            print "({})".format(e)
         return True
     except subprocess.CalledProcessError:
         return False
