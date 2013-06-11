@@ -81,14 +81,14 @@ class FeatureManager(Manager):
     def accept(self, name, summary, with_delete):
         self.canon.fetch()
         summary += [
-            "Latest objects fetched from {}".format(self.canon.name),
+            "Latest objects fetched from {}".format(self.canon),
         ]
         self.develop.checkout()
-        self._repo.git.merge(
-            "{}/{}".format(self.canon.name, self.develop.name),
+        self.repo.git.merge(
+            "{}/{}".format(self.canon, self.develop),
         )
         summary += [
-            "Updated {}".format(self.develop.name),
+            "Updated {}".format(self.develop),
         ]
 
         branch_name = "{}{}".format(
@@ -110,7 +110,7 @@ class FeatureManager(Manager):
                     delete=True,
                 )
                 summary += [
-                    "Deleted {} from {}".format(branch_name, self.origin.name),
+                    "Deleted {} from {}".format(branch_name, self.origin),
                 ]
 
     def abandon(self, name, summary):
@@ -130,7 +130,7 @@ class FeatureManager(Manager):
         ]
 
         if not self.offline:
-            self._repo.git.push(
+            self.repo.git.push(
                 self.origin,
                 branch_name,
                 delete=True,
