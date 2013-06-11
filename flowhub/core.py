@@ -26,7 +26,7 @@ import subprocess
 from engine import Engine
 
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 
 def future_proof_print(x):
