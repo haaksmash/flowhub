@@ -24,7 +24,7 @@ from flowhub.managers import Manager
 
 class FeatureManager(Manager):
 
-    def start(self, name, summary, with_tracking=False):
+    def start(self, name, with_tracking, summary):
         branch_name = "{}{}".format(
             self._prefix,
             name,

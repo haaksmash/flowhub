@@ -147,3 +147,13 @@ class HotfixManager(Manager):
             summary += [
                 "Branch {} removed".format(hotfix_name),
             ]
+
+    def contribute(self, branch, summary):
+        self.repo.git.push(
+            self.origin,
+            branch,
+            set_upstream=True,
+        )
+        summary += [
+            "Branch {} pushed to {}".format(branch, self.origin)
+        ]

@@ -123,7 +123,7 @@ class ReleaseManager(Manager):
                 "Branch {} removed".format(release_name),
             ]
 
-    def contribute(self, branch):
+    def contribute(self, branch, summary):
 
         self.repo.git.push(
             self.origin,
