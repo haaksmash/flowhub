@@ -18,24 +18,37 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
+from collections import namedtuple
 
-import functools
+TagInfo = namedtuple("TagInfo", ["label", "message"])
 
 
-def with_summary(f):
-    """Prints a nice summary, assuming the function accepts a
-    'summary' kwarg and appends to it."""
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        summary = []
-        r = f(*args, summary=summary, **kwargs)
-        if summary:
-            summary = ['\nSummary of actions:'] + summary
-            print "\n - ".join(summary)
+class Manager(object):
 
-        else:
-            print "No summary provided."
+    def __init__(
+        self,
+        debug,
+        prefix,
+        origin,
+        canon,
+        master,
+        develop,
+        release,
+        hotfix,
+        repo,
+        gh,
+        offline
+    ):
+        self._prefix = prefix
+        self.DEBUG = debug
+        self.origin = origin
+        self.canon = canon
+        self.master = master
+        self.develop = develop
+        self.release = release
+        self.hotfix = hotfix
+        self.repo = repo
+        self.gh = gh
+        self.offline = offline
 
-        return r
 
-    return wrapper

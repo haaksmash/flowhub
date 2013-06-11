@@ -20,7 +20,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 import getpass
-import os
 import re
 import subprocess
 import tempfile
@@ -31,31 +30,48 @@ from github import Github, GithubException
 
 from configurator import Configurator, ImproperlyConfigured
 from decorators import with_summary
+from managers import TagInfo
+from managers.feature import FeatureManager
+from managers.hotfix import HotfixManager
+from managers.pull_request import PullRequestManager
+from managers.release import ReleaseManager
 
 
-class NoSuchObject(Exception): pass
+class NoSuchObject(Exception):
+    pass
 
-class NoSuchBranch(NoSuchObject): pass
-class NoSuchRemote(NoSuchObject): pass
+class NoSuchBranch(NoSuchObject):
+    pass
+class NoSuchRemote(NoSuchObject):
+    pass
+
+
+def online_only(method):
+    def wrapper(self, *args, **kwargs):
+        if self.offline:
+            print "not available offline"
+            return False
+
+        return method(self, *args, **kwargs)
+
+    return wrapper
 
 
 class Engine(object):
-    def __init__(self, debug=0, offline=False, no_hooks=False):
-        self.__debug = debug
-        self.no_hooks = no_hooks
-        if self.__debug > 2:
+    def __init__(self, debug=0, INIT=False, offline=False):
+        self.DEBUG = debug
+        if self.DEBUG > 2:
             print "initing engine"
 
         # assume flowhub is called from within a git repository
         self._repo = git.Repo(".")
-
         self._cr = Configurator(self._repo.config_reader())
 
         self._gh = None
 
         self.offline = offline
         if not self.offline:
-            if self.__debug > 0:
+            if self.DEBUG > 0:
                 print "Authorizing engine..."
             if not self.do_auth():
                 print "Authorization failed! Exiting."
@@ -79,15 +95,72 @@ class Engine(object):
                     )
                 )
         else:
-            if self.__debug > 0:
+            if self.DEBUG > 0:
                 print "Skipping auth - GitHub accesses will fail."
+
+        if not INIT:
+            self.feature_manager = FeatureManager(
+                debug=self.DEBUG,
+                prefix=self._cr.flowhub.prefix.feature,
+                origin=self.origin,
+                canon=self.canon,
+                master=self.master,
+                develop=self.develop,
+                release=self.release,
+                hotfix=self.hotfix,
+                repo=self._repo,
+                gh=self._gh,
+                offline=self.offline,
+            )
+
+            self.release_manager = ReleaseManager(
+                debug=self.DEBUG,
+                prefix=self._cr.flowhub.prefix.release,
+                origin=self.origin,
+                canon=self.canon,
+                master=self.master,
+                develop=self.develop,
+                release=self.release,
+                hotfix=self.hotfix,
+                repo=self._repo,
+                gh=self._gh,
+                offline=self.offline,
+            )
+
+            self.hotfix_manager = HotfixManager(
+                debug=self.DEBUG,
+                prefix=self._cr.flowhub.prefix.hotfix,
+                origin=self.origin,
+                canon=self.canon,
+                master=self.master,
+                develop=self.develop,
+                release=self.release,
+                hotfix=self.hotfix,
+                repo=self._repo,
+                gh=self._gh,
+                offline=self.offline,
+            )
+
+            self.pull_manager = PullRequestManager(
+                debug=self.DEBUG,
+                prefix=self._cr.flowhub.structure.name,
+                origin=self.origin,
+                canon=self.canon,
+                master=self.master,
+                develop=self.develop,
+                release=self.release,
+                hotfix=self.hotfix,
+                repo=self._repo,
+                gh=self._gh,
+                offline=self.offline,
+            )
 
     def do_auth(self):
         """Generates the authorization to do things with github."""
         try:
             token = self._cr.flowhub.auth.token
             self._gh = Github(token)
-            if self.__debug > 0:
+            if self.DEBUG > 0:
                 print "GitHub Engine authorized by token in settings."
         except AttributeError:
             print (
@@ -119,14 +192,14 @@ class Engine(object):
                     return False
 
         token = auth.token
-        if self.__debug > 2:
+        if self.DEBUG > 2:
             print "Token generated: ", token
         # set the token globally, rather than on the repo level.
         authing = subprocess.check_output(
             'git config --global --add flowhub.auth.token {}'.format(token),
             shell=True,
         ).strip()
-        if self.__debug > 2:
+        if self.DEBUG > 2:
             print "result of config set:", authing
 
         return True
@@ -143,7 +216,7 @@ class Engine(object):
         hotfix,
     ):
         cw = self._repo.config_writer()
-        if self.__debug > 2:
+        if self.DEBUG > 2:
             print "Begin repo setup"
         if not cw.has_section('flowhub "structure"'):
             cw.add_section('flowhub "structure"')
@@ -152,6 +225,7 @@ class Engine(object):
 
         cw.set('flowhub "structure"', 'origin', origin)
         cw.set('flowhub "structure"', 'canon', canon)
+
         cw.set('flowhub "structure"', 'master', master)
 
         if not self._branch_exists(master):
@@ -175,12 +249,12 @@ class Engine(object):
         self._cr = Configurator(self._repo.config_reader())
 
     def _branch_exists(self, branch_name):
-        if self.__debug > 2:
+        if self.DEBUG > 2:
             print "Checking for existence of branch {}".format(branch_name)
         return getattr(self._repo.heads, branch_name, None) is not None
 
     def _remote_exists(self, repo_name):
-        if self.__debug > 2:
+        if self.DEBUG > 2:
             print "Checking for existence of remote {}".format(repo_name)
         return getattr(self._repo.remotes, repo_name, None) is not None
 
@@ -193,14 +267,14 @@ class Engine(object):
     @property
     def develop(self):
         develop_name = self._cr.flowhub.structure.develop
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "finding develop branch {}".format(develop_name)
         return self.__get_branch_by_name(develop_name)
 
     @property
     def master(self):
         master_name = self._cr.flowhub.structure.master
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "finding master branch {}".format(master_name)
         return self.__get_branch_by_name(master_name)
 
@@ -213,14 +287,14 @@ class Engine(object):
     @property
     def origin(self):
         origin_name = self._cr.flowhub.structure.origin
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "finding origin repo {}".format(origin_name)
         return self.__get_remote_by_name(origin_name)
 
     @property
     def canon(self):
         canon_name = self._cr.flowhub.structure.canon
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "finding canon repo {}".format(canon_name)
         return self.__get_remote_by_name(canon_name)
 
@@ -258,149 +332,89 @@ class Engine(object):
         else:
             return None
 
-    def _create_pull_request(self, base, head, repo=None):
-        if repo is None:
-            repo = self.gh_canon
+    def _create_pull_request(self, base, head, summary):
 
-        if self.__debug > 1:
-            print "setting up new pull-request"
+        # try to glean issue numbers from branch
+        pr_from_issue = self.pull_manager.create_from_branch_name(base, head, summary)
+        if pr_from_issue:
+            return pr_from_issue
 
-        component_name = head.split('/')[-1]
-        match = re.match('^\d+', component_name)
-        if match:
-            issue_number = match.group()
-            issue = repo.get_issue(int(issue_number))
-            pr = repo.create_pull(
-                issue=issue,
-                base=base,
-                head=head,
-            )
-            return pr
-
-        is_issue = raw_input("Is this feature answering an issue? [y/N] ").lower() == 'y'
-
+        is_issue = raw_input("is this feature answering an issue? [y/N] ").lower() == 'y'
         if not is_issue:
-            issue = self._open_issue(return_values=True)
+            issue = self._open_issue(summary=summary, return_issue=True)
 
-            if self.__debug > 1:
+            if self.DEBUG > 1:
                 print (issue.title, issue.body, base, head)
 
         else:
             good_number = False
             while not good_number:
                 try:
-                    issue_number = int(raw_input("Issue number: "))
+                    issue_number = int(raw_input("issue number: "))
                 except ValueError:
-                    print "That isn't a valid number."
+                    print "not a valid number"
                     continue
 
-                try:
-                    issue = repo.get_issue(issue_number)
-                except GithubException:
-                    print "That's not a valid issue."
+                issue = self.pull_manager.get_issue(issue_number)
+                if issue is None:
+                    print "no such issue"
                     continue
 
                 good_number = True
 
-        pr = repo.create_pull(
+        pr = self.pull_manager.create_pull(
             issue=issue,
             base=base,
             head=head,
+            summary=summary,
         )
 
         return pr
 
-    def _create_feature(self, name=None, create_tracking_branch=True, summary=None):
+    def _create_feature(self, name=None, with_tracking=True, summary=None):
         if name is None:
-            print "Please provide a feature name."
+            print "please provide a feature name."
             return False
 
         if summary is None:
             summary = []
 
-        if self.__debug > 0:
-            print "Creating new feature branch..."
-        # Checkout develop
-        # checkout -b feature_prefix+branch_name
-        # push -u origin feature_prefix+branch_name
-
-        branch_name = "{}{}".format(
-            self._cr.flowhub.prefix.feature,
+        branch = self.feature_manager.start(
             name,
+            with_tracking,
+            summary,
         )
-        self._repo.create_head(
-            branch_name,
-            commit=self.develop,  # Requires a develop branch.
-        )
-        summary += [
-            "New branch {} created, from branch {}".format(
-                branch_name,
-                self._cr.flowhub.structure.develop,
-            )
-        ]
 
-        if not self.offline and create_tracking_branch:
-            if self.__debug > 0:
-                print "Adding a tracking branch to your GitHub repo"
-            self._repo.git.push(
-                self._cr.flowhub.structure.origin,
-                branch_name,
-                set_upstream=True
-            )
-            summary += [
-                "Created a remote tracking branch on {} for {}".format(
-                    self.origin.name,
-                    branch_name,
-                ),
-            ]
-
-        # Checkout the branch.
-        branch = getattr(self._repo.branches, branch_name)
         branch.checkout()
 
         summary += [
-            "Checked out branch {}".format(branch_name),
+            "Checked out branch {}".format(branch.name),
         ]
 
         return True
     create_feature = with_summary(_create_feature)
 
-    def work_feature(self, name=None, issue=None):
+    def work_feature(self, name=None):
         """Simply checks out the feature branch for the named feature."""
-        if name is None and issue is None:
-            print "please provide a feature name or an issue number."
-            return
+        if name is None:
+            print "please provide a feature name."
+            return False
 
-        if self.__debug > 0:
-            print "switching to a feature branch..."
+        branches = self.feature_manager.fuzzy_get(name)
 
-        if name is not None:
-            branch_name = "{}{}".format(
-                self._cr.flowhub.prefix.feature,
-                name
-            )
+        if len(branches) == 1:
+            branches[0].checkout()
+            print "switched to branch '{}'".format(branches[0].name)
 
-        elif issue is not None:
-            branch_name = None
-            for branch in self._repo.branches:
-                if not branch.name.startswith(self._cr.flowhub.prefix.feature):
-                    continue
-
-                fname = branch.name[len(self._cr.flowhub.prefix.feature):]
-                if fname.startswith(str(issue)):
-                    branch_name = branch.name
-                    break
-
-        branches = [x for x in self._repo.branches if x.name == branch_name]
-        if branches:
-            branch = branches[0]
-
-            branch.checkout()
-            print "Switched to branch '{}'".format(branch.name)
+        elif len(branches) > 1:
+            print "multiple branches found:"
+            for branch in branches:
+                print "\t{}".format(branch)
 
         else:
-            print "No feature with name {}".format(name)
-            return
+            print "No feature starts with {}".format(name)
+
+        return True
 
     def _accept_feature(self, name=None, delete_feature_branch=True, summary=None):
         if summary is None:
@@ -416,50 +430,23 @@ class Engine(object):
                     "Please provide a feature name, or switch to "
                     "the feature branch you want to mark as accepted."
                 )
-                return
+                return False
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
             return_branch = self.develop
 
-        self.canon.fetch()
-        summary += [
-            "Latest objects fetched from {}".format(self.canon.name),
-        ]
-        self.develop.checkout()
-        self._repo.git.merge(
-            "{}/{}".format(self.canon.name, self.develop.name),
-        )
-        summary += [
-            "Updated {}".format(self.develop.name),
-        ]
-
-        branch_name = "{}{}".format(
-            self._cr.flowhub.prefix.feature,
+        self.feature_manager.accept(
             name,
+            summary=summary,
+            with_delete=delete_feature_branch,
         )
-
-        if delete_feature_branch:
-            self._repo.delete_head(
-                branch_name,
-            )
-            summary += [
-                "Deleted {} from local repository".format(branch_name),
-            ]
-
-            if not self.offline:
-                self.origin.push(
-                    branch_name,
-                    delete=True,
-                )
-                summary += [
-                    "Deleted {} from {}".format(branch_name, self.origin.name),
-                ]
 
         return_branch.checkout()
         summary += [
             "Checked out branch {}".format(return_branch.name),
         ]
 
+        return True
     accept_feature = with_summary(_accept_feature)
 
     def _abandon_feature(self, name=None, summary=None):
@@ -475,12 +462,12 @@ class Engine(object):
                     "Please provide a feature name, or switch to "
                     "the feature branch you want to abandon."
                 )
-                return
+                return False
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
             return_branch = self.develop
 
-        if self.__debug > 0:
+        if self.DEBUG > 0:
             print "Abandoning feature branch..."
 
         # checkout develop
@@ -488,45 +475,21 @@ class Engine(object):
         # push --delete origin feature_prefix+name
 
         return_branch.checkout()
-
-        branch_name = "{}{}".format(
-            self._cr.flowhub.prefix.feature,
-            name,
-        )
-
-        self._repo.delete_head(
-            branch_name,
-            force=True,
-        )
-        summary += [
-            "Deleted branch {} locally".format(
-                branch_name,
-            ),
-        ]
-
-        if not self.offline:
-            self._repo.git.push(
-                self._cr.flowhub.structure.origin,
-                branch_name,
-                delete=True,
-                force=True,
-            )
-            summary[-1] += "and from remote {}".format(
-                self._cr.flowhub.structure.origin,
-            )
-
         summary += [
             "Checked out branch {}".format(
                 return_branch.name,
             ),
         ]
 
+        self.feature_manager.abandon(
+            name,
+            summary=summary,
+        )
+        return True
     abandon_feature = with_summary(_abandon_feature)
 
-    def _publish_feature(self, name, summary=None):
-
-        # hook: pre_feature_publish
-
+    @online_only
+    def _publish_feature(self, name=None, summary=None):
         if summary is None:
             summary = []
         if name is None:
@@ -535,54 +498,24 @@ class Engine(object):
             name = self._repo.head.reference.name
             if self._cr.flowhub.prefix.feature not in name:
                 print (
-                    "Please provide a feature name, or switch to "
+                    "please provide a feature name, or switch to "
                     "the feature branch you want to publish."
                 )
-                return
+                return False
 
             name = name.replace(self._cr.flowhub.prefix.feature, '')
 
-        branch_name = "{}{}".format(
-            self._cr.flowhub.prefix.feature,
-            name,
-        )
-        self._repo.git.push(
-            self._cr.flowhub.structure.origin,
-            branch_name,
-            set_upstream=True,
-        )
-        summary += [
-            "Updated {}/{}".format(self.origin.name, branch_name)
-        ]
+        branch = self.feature_manager.publish(name, summary)
 
-        base = self.develop.name
-        if self.gh_canon == self.origin:
-            head = branch_name
-        else:
-            head = "{}:{}".format(self._gh.get_user().login, branch_name)
+        # we don't have access to gh_canon if we're offline
+        if not self.offline:
+            base = self.develop
+            pr = self.pull_manager.add_to_pull(base, branch, summary)
 
-        prs = [
-            x for x in self.gh_canon.get_pulls('open')
-            if x.head.label == head
-            or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
-        ]
-        if prs:
-            # If there's already a pull-request, don't bother hitting the gh api.
-            summary += [
-                "New commits added to existing pull-request"
-                "\n\turl: {}".format(prs[0].issue_url)
-            ]
-            return
+            if not pr:
+                pr = self._create_pull_request(base, branch, summary)
 
-        pr = self._create_pull_request(base, head)
-        summary += [
-            "New pull request created: {} into {}"
-            "\n\turl: {}".format(
-                head,
-                base,
-                pr.issue_url,
-            )
-        ]
+        return True
     publish_feature = with_summary(_publish_feature)
 
     def list_features(self):
@@ -610,7 +543,7 @@ class Engine(object):
 
         return features
 
-    def _start_release(self, name, summary=None):
+    def _start_release(self, name=None, summary=None):
         # checkout develop
         # if already release branch, abort.
         # checkout -b relase_prefix+branch_name
@@ -620,53 +553,25 @@ class Engine(object):
 
         if name is None:
             print "Please provide a release name."
-            return
+            return False
 
         if any([
             x for x in self._repo.branches
                 if x.name.startswith(self._cr.flowhub.prefix.release)
         ]):
             print "You already have a release in the works - please finish that one."
-            return
+            return False
 
-        if self.__debug > 0:
+        if self.DEBUG > 0:
             print "Creating new release branch..."
 
-        # checkout develop
-        # checkout -b release/name
+        branch = self.release_manager.start(name, summary)
 
-        branch_name = "{}{}".format(
-            self._cr.flowhub.prefix.release,
-            name,
-        )
-        self._repo.create_head(
-            branch_name,
-            commit=self.develop,
-        )
-        summary += [
-            "New branch {} created, from branch {}".format(
-                branch_name,
-                self._cr.flowhub.structure.develop,
-            ),
-        ]
-
-        if self.__debug > 0:
-            print "Adding a tracking branch to your GitHub repo"
-        self.canon.push(
-            "{0}:{0}".format(branch_name),
-            set_upstream=True,
-        )
-        summary += [
-            "Pushed {} to {}".format(branch_name, self.canon.name),
-        ]
-
-        # Checkout the branch.
-        branch = getattr(self._repo.branches, branch_name)
         branch.checkout()
 
         summary += [
             "Checked out branch {}"
-            "\n\nBump the release version now!".format(branch_name)
+            "\n\nBump the release version now!".format(branch)
         ]
 
         return True
@@ -685,7 +590,7 @@ class Engine(object):
     def _publish_release(
         self,
         name=None,
-        delete_release_branch=True,
+        with_delete=True,
         summary=None,
         tag_label=None,
         tag_message=None,
@@ -715,88 +620,26 @@ class Engine(object):
                     "Please provide a release name, or switch to "
                     "the release branch you want to publish."
                 )
-                return
+                return False
 
             name = name.replace(self._cr.flowhub.prefix.release, '')
             return_branch = self.develop
 
-        release_name = "{}{}".format(
-            self._cr.flowhub.prefix.release,
-            name,
-        )
-
-        self.canon.fetch()
-        summary += [
-            "Latest objects fetched from {}".format(self.canon.name),
-        ]
-
-        # TODO: ensure equality of remote and local master/develop branches
-        # TODO: handle merge conflicts.
-        # merge into master
-        self.master.checkout()
-        self._repo.git.merge(
-            release_name,
-            no_ff=True,
-        )
-        summary += [
-            "Branch {} merged into {}".format(release_name, self.master.name),
-        ]
-
-        # and tag
-        if tag_label is None:
-            default_tag = name
-            tag_label = raw_input("Tag Label [{}]: ".format(default_tag)) or default_tag
-
-        if tag_message is None:
-            tag_message = raw_input("Message for this tag ({}): ".format(name))
-        self._repo.create_tag(
-            path=tag_label,
-            ref=self.master,
-            message=tag_message,
-        )
-        summary += [
-            "New tag ({}:{}) created at {}'s tip".format(name, tag_message, self.master.name),
-        ]
-
-        # merge into develop
-        self.develop.checkout()
-        self._repo.git.merge(
-            self.master.name,
-            no_ff=True,
-        )
-        summary += [
-            "Branch {} merged into {}".format(self.master.name, self.develop.name),
-        ]
-
-        # push to canon
-        self.canon.push()
-        self.canon.push(tags=True)
-        summary += [
-            "{}, {}, and tags have been pushed to {}".format(
-                self.master.name,
-                self.develop.name,
-                self.canon.name
-            ),
-        ]
-
-        if delete_release_branch:
-            self._repo.delete_head(release_name)
-            self.canon.push(
-                release_name,
-                delete=True,
-            )
-            summary += [
-                "Branch {} {}".format(release_name, 'removed' if delete_release_branch else "still available"),
-            ]
+        tag_info = TagInfo(tag_label, tag_message)
+        self.release_manager.publish(name, with_delete, tag_info, summary)
 
         return_branch.checkout()
         summary += [
             "Checked out branch {}".format(return_branch.name),
         ]
+        return name
     publish_release = with_summary(_publish_release)
 
-    @with_summary
-    def contribute_release(self, summary=None):
+    @online_only
+    def _contribute_release(self, summary=None):
+        if summary is None:
+            summary = []
+
         if not (self.release and self.release.commit in self._repo.head.reference.object.iter_parents()):
             # Don't allow random branches to be contributed.
             print (
@@ -804,42 +647,18 @@ class Engine(object):
                 "descendant of a current release.\n"
                 "Unfortunately, this isn't allowed."
             )
-            return
+            return False
 
-        branch_name = self._repo.head.reference.name
-        self._repo.git.push(
-            self._cr.flowhub.structure.origin,
-            branch_name,
-            set_upstream=True,
-        )
+        branch = self._repo.head.reference
 
-        base = self.release.name
-        if self.gh_canon == self.origin:
-            head = branch_name
-        else:
-            head = "{}:{}".format(self._gh.get_user().login, branch_name)
+        self.release_manager.contribute(branch, summary)
 
-        prs = [
-            x for x in self.gh_canon.get_pulls('open') if x.head.label == head
-            or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
-        ]
-        if prs:
-            # If there's already a pull-request, don't bother hitting the gh api.
-            summary += [
-                "New commits added to existing pull-request"
-                "\n\turl: {}".format(prs[0].issue_url)
-            ]
-            return
+        pr = self.pull_manager.add_to_pull(self.release, branch, summary)
+        if not pr:
+            pr = self._create_pull_request(self.release, branch, summary)
 
-        pr = self._create_pull_request(base, head)
-        summary += [
-            "New pull request created: {} into {}"
-            "\n\turl: {}".format(
-                head,
-                base,
-                pr.issue_url,
-            )
-        ]
+        return True
+    contribute_release = with_summary(_contribute_release)
 
     @with_summary
     def cleanup_branches(self, summary=None, targets=""):
@@ -904,7 +723,7 @@ class Engine(object):
                     print e
                     continue
 
-    def _start_hotfix(self, name, issues=None, summary=None):
+    def _start_hotfix(self, name=None, issues=None, summary=None):
         # Checkout master
         # if already hotfix branch, abort.
         # checkout -b hotfix_prefix+branch_name
@@ -922,67 +741,31 @@ class Engine(object):
             print (
                 "You already have a hotfix in the works - please finish that one."
             )
+            return False
 
-        if self.__debug > 0:
+        if self.DEBUG > 0:
             print "Creating new hotfix branch..."
 
         # checkout develop
-        # checkout -b release/name
+        # checkout -b hotfix/name
 
-        branch_name = "{}{}{}".format(
-            self._cr.flowhub.prefix.hotfix,
-            "-".join(['{}'.format(issue) for issue in issues]) + '-' if issues is not None else "",
-            name,
-        )
-        self.canon.fetch()
-        summary += [
-            "Latest objects fetched from {}".format(self.canon.name),
-        ]
-        self.master.checkout()
-        self._repo.git.merge(
-            "{}/{}".format(self.canon.name, self.master.name),
-        )
-        summary += [
-            "Updated {}".format(self.master.name),
-        ]
-
-        self._repo.create_head(
-            branch_name,
-            commit=self.master,
-        )
-        summary += [
-            "New branch {} created, from branch {}".format(
-                branch_name,
-                self.master.name,
-            ),
-        ]
-
-        if self.__debug > 0:
-            print "Adding a tracking branch to your GitHub repo"
-        self.canon.push(
-            "{0}:{0}".format(branch_name),
-            set_upstream=True,
-        )
-        summary += [
-            "Pushed {} to {}".format(branch_name, self.canon.name),
-        ]
-
-        # simulate self._repo.branches.branch_name, which is what we really want
-        branch = getattr(self._repo.branches, branch_name)
+        branch = self.hotfix_manager.start(name, issues, summary)
 
         # Checkout the branch.
         branch.checkout()
         summary += [
             "Checked out branch {}"
-            "\n\nBump the release version now!".format(branch_name),
+            "\n\nBump the release version now!".format(branch),
         ]
+        return True
+
     start_hotfix = with_summary(_start_hotfix)
 
     def _publish_hotfix(
         self,
-        name,
+        name=None,
         summary=None,
-        delete_hotfix_branch=True,
+        with_delete=True,
         tag_label=None,
         tag_message=None,
     ):
@@ -1009,98 +792,19 @@ class Engine(object):
             name = name.replace(self._cr.flowhub.prefix.hotfix, '')
             return_branch = self.develop
 
-        hotfix_name = "{}{}".format(
-            self._cr.flowhub.prefix.hotfix,
-            name,
-        )
-
-        self.canon.fetch()
-        summary += [
-            "Latest objects fetched from {}".format(self.canon.name),
-        ]
-
-        # TODO: ensure equality of remote and local master/develop branches
-        # TODO: handle merge conflicts.
-        # merge into master
-        self.master.checkout()
-        self._repo.git.merge(
-            hotfix_name,
-            no_ff=True,
-        )
-        summary += [
-            "Branch {} merged into {}".format(hotfix_name, self.master.name),
-        ]
-
-        # and tag
-        issue_numbers = re.findall('(\d+)-', name)
-        # cut off any issue numbers that may be there
-
-        if tag_label is None:
-            default_tag = name[len('-'.join(issue_numbers)) + 1:] if issue_numbers else name
-            tag_label = raw_input("Tag Label [{}]: ".format(default_tag)) or default_tag
-
-        if tag_message is None:
-            tag_message = raw_input("Message for this tag: ")
-        self._repo.create_tag(
-            path=tag_label,
-            ref=self.master,
-            message=tag_message,
-        )
-        summary += [
-            "New tag ({}:{}) created at {}'s tip".format(name, tag_message, self.master.name),
-        ]
-
-        # merge into develop (or release, if exists)
-        if self.release:
-            trunk = self.release
-        else:
-            trunk = self.develop
-        trunk.checkout()
-        self._repo.git.merge(
-            self.master.name,
-            no_ff=True,
-        )
-        summary += [
-            "Branch {} merged into {}".format(self.master.name, trunk.name),
-        ]
-
-        # push to canon
-        self.canon.push()
-        self.canon.push(tags=True)
-        summary += [
-            "{}, {}, and tags have been pushed to {}".format(self.master.name, trunk.name, self.canon.name),
-        ]
-
-        for number in issue_numbers:
-            try:
-                number = int(number)
-            except ValueError:
-                continue
-
-            issue = self._gh_repo.get_issue(number)
-            issue.edit(state='closed')
-            summary += [
-                "Closed issue #{}".format(issue.number),
-            ]
-
-        if delete_hotfix_branch:
-            self._repo.delete_head(hotfix_name)
-            self.canon.push(
-                hotfix_name,
-                delete=True,
-            )
-            summary += [
-                "Branch {} removed".format(hotfix_name),
-            ]
+        tag_info = TagInfo(tag_label, tag_message)
+        self.hotfix_manager.publish(name, tag_info, with_delete, summary)
 
         return_branch.checkout()
         summary += [
             "Checked out branch {}".format(return_branch.name),
         ]
+
+        return name
     publish_hotfix = with_summary(_publish_hotfix)
 
-    @with_summary
-    def contribute_hotfix(self, summary=None):
+    @online_only
+    def _contribute_hotfix(self, summary=None):
         if not (self.hotfix and self.hotfix.commit in self._repo.head.reference.object.iter_parents()):
             # Don't allow random branches to be contributed.
             print (
@@ -1108,53 +812,27 @@ class Engine(object):
                 "descendant of the current hotfix.\n"
                 "Unfortunately, this isn't allowed."
             )
-            return
+            return False
 
-        branch_name = self._repo.head.reference.name
-        self._repo.git.push(
-            self._cr.flowhub.structure.origin,
-            branch_name,
-            set_upstream=True,
-        )
+        branch = self._repo.head.reference
 
-        if self.canon == self.origin:
-            gh_parent = self._gh_repo
-            base = self.hotfix.name
-            head = branch_name
-        else:
-            gh_parent = self._gh_repo.parent
-            base = self.hotfix.name
-            head = "{}:{}".format(self._gh.get_user().login, branch_name)
+        self.release_manager.contribute(branch, summary)
+        pr = self.pull_manager.add_to_pull(self.hotfix, branch, summary)
 
-        prs = [
-            x for x in gh_parent.get_pulls('open') if x.head.label == head
-            or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
-        ]
-        if prs:
-            # If there's already a pull-request, don't bother hitting the gh api.
-            summary += [
-                "New commits added to existing pull-request"
-                "\n\turl: {}".format(prs[0].issue_url)
-            ]
-            return
+        if not pr:
+            self._create_pull_request(self.hotfix, branch, summary)
 
-        pr = self._create_pull_request(base, head, gh_parent)
-        summary += [
-            "New pull request created: {} into {}"
-            "\n\turl: {}".format(
-                head,
-                base,
-                pr.issue_url,
-            )
-        ]
+        return True
+    contribute_release = with_summary(_contribute_release)
 
+    @online_only
     def _open_issue(
         self,
         title=None,
         labels=None,
         create_branch=False,
         summary=None,
-        return_values=False
+        return_issue=False
     ):
         if title is None:
             title = raw_input("Title for this issue: ")
@@ -1167,14 +845,12 @@ class Engine(object):
         if summary is None:
             summary = []
 
-        gh_labels = [l for l in self._gh_repo.get_labels() if l.name in labels]
-
         # Open the $EDITOR, if you can...
         descr_f = tempfile.NamedTemporaryFile(delete=False)
         descr_f.file.write(
             "\n\n# Write your description above. Remember - you can use GitHub markdown syntax!"
         )
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "Temp file: ", descr_f.name
         # regardless, close the tempfile.
         descr_f.close()
@@ -1185,11 +861,11 @@ class Engine(object):
                 shell=True
             )
         except OSError:
-            if self.__debug > 2:
+            if self.DEBUG > 2:
                 print "Hmm...are you on Windows?"
             editor_result = 126
 
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "result of $EDITOR: ", editor_result
 
         if editor_result == 0:
@@ -1208,36 +884,19 @@ class Engine(object):
                 "Description (remember, you can use GitHub markdown):\n"
             )
 
-        if self.__debug > 3:
+        if self.DEBUG > 3:
             print "Description used:\n", body
 
-        issue = self._gh_repo.create_issue(
-            title=title,
-            body=body or "No description provided.",
-            labels=gh_labels,
-        )
-
-        summary += [
-            'Opened issue #{}: {}{}\n'
-            '\turl: {}'.format(
-                issue.number,
-                title,
-                '\n\t[{}]'.format(' '.join([l.name for l in gh_labels])) if gh_labels else '',
-                issue.url,
-            )
-        ]
+        issue = self.pull_manager.open_issue(title, body, labels, summary)
 
         if create_branch:
             feature_name = "{}-{}".format(
                 issue.number,
                 title.replace(' ', '-').lower(),
             )
-            self._create_feature(
-                name=feature_name,
-                create_tracking_branch=False,
-                summary=summary,
-            )
-        if return_values:
+            self.feature_manager.start(feature_name, summary, with_tracking=False)
+
+        if return_issue:
             return issue
 
     open_issue = with_summary(_open_issue)
