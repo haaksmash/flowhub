@@ -38,6 +38,7 @@ def do_hook(args, engine, hook_name, *hook_args):
         return True
 
     try:
+        hook_args = tuple(str(a) for a in hook_args)
         subprocess.check_call((os.path.join(engine._repo.git_dir, 'hooks', hook_name),) + hook_args)
         return True
     except OSError:
@@ -169,11 +170,11 @@ def handle_hotfix_call(args, engine):
         if not do_hook(args, engine, "pre-hotfix-publish"):
             return False
 
-        engine.publish_hotfix(
+        results = engine.publish_hotfix(
             name=args.name,
         )
 
-        do_hook(args, engine, "post-hotfix-publish", args.name)
+        do_hook(args, engine, "post-hotfix-publish", results)
 
     elif args.action == 'contribute':
         engine.contribute_hotfix()
@@ -195,11 +196,11 @@ def handle_release_call(args, engine):
         if not do_hook(args, engine, "pre-release-publish"):
             return False
 
-        engine.publish_release(
+        results = engine.publish_release(
             name=args.name,
-            delete_release_branch=(not args.no_cleanup),
+            with_delete=(not args.no_cleanup),
         )
-        do_hook(args, engine, "post-release-publish", args.name)
+        do_hook(args, engine, "post-release-publish", results)
 
     elif args.action == 'contribute':
         engine.contribute_release()

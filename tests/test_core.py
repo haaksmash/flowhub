@@ -278,7 +278,7 @@ class ReleaseCallTestCase(CoreTestCase):
                 mock.call.start_release(name=self.args.name),
             ])
 
-    def test_publish(self):
+    def test_publish_with_name(self):
         self.args.action = "publish"
         self.args.no_cleanup = False
         self.args.name = id_generator()
@@ -289,11 +289,11 @@ class ReleaseCallTestCase(CoreTestCase):
             patch.assert_has_calls([
                 mock.call(self.args, self.engine_mock, "pre-release-publish"),
                 mock.call().__nonzero__(),  # the if check
-                mock.call(self.args, self.engine_mock, "post-release-publish", self.args.name),
+                mock.call(self.args, self.engine_mock, "post-release-publish", mock.ANY),
             ])
 
             self.engine_mock.assert_has_calls([
-                mock.call.publish_release(name=self.args.name, delete_release_branch=not self.args.no_cleanup),
+                mock.call.publish_release(name=self.args.name, with_delete=not self.args.no_cleanup),
             ])
 
     def test_publish_failed_hook(self):
@@ -348,7 +348,7 @@ class HotfixCallTestCase(CoreTestCase):
                 )
             ])
 
-    def test_publish(self):
+    def test_publish_with_name(self):
         self.args.action = "publish"
         self.args.name = id_generator()
         self.args.issue_numbers = []
@@ -359,7 +359,7 @@ class HotfixCallTestCase(CoreTestCase):
 
             patch.assert_has_calls([
                 mock.call(self.args, self.engine_mock, 'pre-hotfix-publish'),
-                mock.call(self.args, self.engine_mock, 'post-hotfix-publish', self.args.name),
+                mock.call(self.args, self.engine_mock, 'post-hotfix-publish', mock.ANY),
 
             ])
 

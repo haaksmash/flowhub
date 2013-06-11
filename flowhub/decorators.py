@@ -28,12 +28,14 @@ def with_summary(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         summary = []
-        f(*args, summary=summary, **kwargs)
+        r = f(*args, summary=summary, **kwargs)
         if summary:
             summary = ['\nSummary of actions:'] + summary
             print "\n - ".join(summary)
 
         else:
             print "No summary provided."
+
+        return r
 
     return wrapper

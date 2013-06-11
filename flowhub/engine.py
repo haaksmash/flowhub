@@ -633,7 +633,7 @@ class Engine(object):
         summary += [
             "Checked out branch {}".format(return_branch.name),
         ]
-        return True
+        return name
     publish_release = with_summary(_publish_release)
 
     @online_only
@@ -801,7 +801,7 @@ class Engine(object):
             "Checked out branch {}".format(return_branch.name),
         ]
 
-        return True
+        return name
     publish_hotfix = with_summary(_publish_hotfix)
 
     @online_only
