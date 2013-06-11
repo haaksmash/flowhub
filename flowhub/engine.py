@@ -33,13 +33,17 @@ from decorators import with_summary
 from managers import TagInfo
 from managers.feature import FeatureManager
 from managers.hotfix import HotfixManager
+from managers.pull_request import PullRequestManager
 from managers.release import ReleaseManager
 
 
-class NoSuchObject(Exception): pass
+class NoSuchObject(Exception):
+    pass
 
-class NoSuchBranch(NoSuchObject): pass
-class NoSuchRemote(NoSuchObject): pass
+class NoSuchBranch(NoSuchObject):
+    pass
+class NoSuchRemote(NoSuchObject):
+    pass
 
 
 def online_only(method):
@@ -102,6 +106,8 @@ class Engine(object):
                 canon=self.canon,
                 master=self.master,
                 develop=self.develop,
+                release=self.release,
+                hotfix=self.hotfix,
                 repo=self._repo,
                 gh=self._gh,
                 offline=self.offline,
@@ -114,6 +120,8 @@ class Engine(object):
                 canon=self.canon,
                 master=self.master,
                 develop=self.develop,
+                release=self.release,
+                hotfix=self.hotfix,
                 repo=self._repo,
                 gh=self._gh,
                 offline=self.offline,
@@ -126,6 +134,22 @@ class Engine(object):
                 canon=self.canon,
                 master=self.master,
                 develop=self.develop,
+                release=self.release,
+                hotfix=self.hotfix,
+                repo=self._repo,
+                gh=self._gh,
+                offline=self.offline,
+            )
+
+            self.pull_manager = PullRequestManager(
+                debug=self.DEBUG,
+                prefix=self._cr.flowhub.structure.name,
+                origin=self.origin,
+                canon=self.canon,
+                master=self.master,
+                develop=self.develop,
+                release=self.release,
+                hotfix=self.hotfix,
                 repo=self._repo,
                 gh=self._gh,
                 offline=self.offline,
@@ -309,29 +333,16 @@ class Engine(object):
         else:
             return None
 
-    def _create_pull_request(self, base, head, repo=None):
-        if repo is None:
-            repo = self.gh_canon
+    def _create_pull_request(self, base, head, summary):
 
-        if self.DEBUG > 1:
-            print "setting up new pull-request"
-
-        component_name = head.split('/')[-1]
-        match = re.match('^\d+', component_name)
-        if match:
-            issue_number = match.group()
-            issue = repo.get_issue(int(issue_number))
-            pr = repo.create_pull(
-                issue=issue,
-                base=base,
-                head=head,
-            )
-            return pr
+        # try to glean issue numbers from branch
+        pr_from_issue = self.pull_manager.create_from_branch_name(base, head, summary)
+        if pr_from_issue:
+            return pr_from_issue
 
         is_issue = raw_input("is this feature answering an issue? [y/N] ").lower() == 'y'
-
         if not is_issue:
-            issue = self._open_issue(return_values=True)
+            issue = self._open_issue(summary=summary, return_issue=True)
 
             if self.DEBUG > 1:
                 print (issue.title, issue.body, base, head)
@@ -342,21 +353,21 @@ class Engine(object):
                 try:
                     issue_number = int(raw_input("issue number: "))
                 except ValueError:
-                    print "that isn't a valid number."
+                    print "not a valid number"
                     continue
 
-                try:
-                    issue = repo.get_issue(issue_number)
-                except GithubException:
-                    print "that's not a valid issue."
+                issue = self.pull_manager.get_issue(issue_number)
+                if issue is None:
+                    print "no such issue"
                     continue
 
                 good_number = True
 
-        pr = repo.create_pull(
+        pr = self.pull_manager.create_pull(
             issue=issue,
             base=base,
             head=head,
+            summary=summary,
         )
 
         return pr
@@ -499,35 +510,11 @@ class Engine(object):
 
         # we don't have access to gh_canon if we're offline
         if not self.offline:
-            base = self.develop.name
-            if self.gh_canon == self.origin:
-                head = branch.name
-            else:
-                head = "{}:{}".format(self._gh.get_user().login, branch.name)
+            base = self.develop
+            pr = self.pull_manager.add_to_pull(base, branch, summary)
 
-            prs = [
-                x for x in self.gh_canon.get_pulls('open')
-                if x.head.label == head
-                or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
-            ]
-
-            # If there's already a pull-request, don't bother hitting the gh api.
-            if prs:
-                summary += [
-                    "New commits added to existing pull-request"
-                    "\n\turl: {}".format(prs[0].issue_url)
-                ]
-
-            else:
-                pr = self._create_pull_request(base, head)
-                summary += [
-                    "New pull request created: {} into {}"
-                    "\n\turl: {}".format(
-                        head,
-                        base,
-                        pr.issue_url,
-                    )
-                ]
+            if not pr:
+                pr = self._create_pull_request(base, branch, summary)
 
         return True
     publish_feature = with_summary(_publish_feature)
@@ -663,36 +650,13 @@ class Engine(object):
             )
             return False
 
-        branch = self._repo.head
+        branch = self._repo.head.reference
 
-        self.release_manager.contribute(branch)
+        self.release_manager.contribute(branch, summary)
 
-        base = self.release.name
-        if self.gh_canon == self.origin:
-            head = branch
-        else:
-            head = "{}:{}".format(self._gh.get_user().login, branch)
-
-        prs = [
-            x for x in self.gh_canon.get_pulls('open') if x.head.label == head
-            or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
-        ]
-        if prs:
-            # If there's already a pull-request, don't bother hitting the gh api.
-            summary += [
-                "New commits added to existing pull-request"
-                "\n\turl: {}".format(prs[0].issue_url)
-            ]
-        else:
-            pr = self._create_pull_request(base, head)
-            summary += [
-                "New pull request created: {} into {}"
-                "\n\turl: {}".format(
-                    head,
-                    base,
-                    pr.issue_url,
-                )
-            ]
+        pr = self.pull_manager.add_to_pull(self.release, branch, summary)
+        if not pr:
+            pr = self._create_pull_request(self.release, branch, summary)
 
         return True
     contribute_release = with_summary(_contribute_release)
@@ -851,54 +815,25 @@ class Engine(object):
             )
             return False
 
-        branch_name = self._repo.head.reference.name
-        self._repo.git.push(
-            self._cr.flowhub.structure.origin,
-            branch_name,
-            set_upstream=True,
-        )
+        branch = self._repo.head.reference
 
-        if self.canon == self.origin:
-            gh_parent = self._gh_repo
-            base = self.hotfix.name
-            head = branch_name
-        else:
-            gh_parent = self._gh_repo.parent
-            base = self.hotfix.name
-            head = "{}:{}".format(self._gh.get_user().login, branch_name)
+        self.release_manager.contribute(branch, summary)
+        pr = self.pull_manager.add_to_pull(self.hotfix, branch, summary)
 
-        prs = [
-            x for x in gh_parent.get_pulls('open') if x.head.label == head
-            or x.head.label == "{}:{}".format(self._gh.get_user().login, head)
-        ]
-        if prs:
-            # If there's already a pull-request, don't bother hitting the gh api.
-            summary += [
-                "New commits added to existing pull-request"
-                "\n\turl: {}".format(prs[0].issue_url)
-            ]
-
-        else:
-            pr = self._create_pull_request(base, head, gh_parent)
-            summary += [
-                "New pull request created: {} into {}"
-                "\n\turl: {}".format(
-                    head,
-                    base,
-                    pr.issue_url,
-                )
-            ]
+        if not pr:
+            self._create_pull_request(self.hotfix, branch, summary)
 
         return True
     contribute_release = with_summary(_contribute_release)
 
+    @online_only
     def _open_issue(
         self,
         title=None,
         labels=None,
         create_branch=False,
         summary=None,
-        return_values=False
+        return_issue=False
     ):
         if title is None:
             title = raw_input("Title for this issue: ")
@@ -910,8 +845,6 @@ class Engine(object):
 
         if summary is None:
             summary = []
-
-        gh_labels = [l for l in self._gh_repo.get_labels() if l.name in labels]
 
         # Open the $EDITOR, if you can...
         descr_f = tempfile.NamedTemporaryFile(delete=False)
@@ -955,33 +888,16 @@ class Engine(object):
         if self.DEBUG > 3:
             print "Description used:\n", body
 
-        issue = self._gh_repo.create_issue(
-            title=title,
-            body=body or "No description provided.",
-            labels=gh_labels,
-        )
-
-        summary += [
-            'Opened issue #{}: {}{}\n'
-            '\turl: {}'.format(
-                issue.number,
-                title,
-                '\n\t[{}]'.format(' '.join([l.name for l in gh_labels])) if gh_labels else '',
-                issue.url,
-            )
-        ]
+        issue = self.pull_manager.open_issue(title, body, labels, summary)
 
         if create_branch:
             feature_name = "{}-{}".format(
                 issue.number,
                 title.replace(' ', '-').lower(),
             )
-            self._create_feature(
-                name=feature_name,
-                create_tracking_branch=False,
-                summary=summary,
-            )
-        if return_values:
+            self.feature_manager.start(feature_name, summary, with_tracking=False)
+
+        if return_issue:
             return issue
 
     open_issue = with_summary(_open_issue)
