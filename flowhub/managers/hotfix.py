@@ -28,11 +28,14 @@ class HotfixManager(Manager):
 
     def start(self, name, issues, summary):
         branch_name = "{}{}{}".format(
-            self.prefix,
+            self._prefix,
             "-".join(['{}'.format(issue) for issue in issues]) + '-' if issues is not None else "",
             name,
         )
-        self.canon.fetch()
+
+        if not self.offline:
+            self.canon.fetch()
+
         summary += [
             "Latest objects fetched from {}".format(self.canon),
         ]
@@ -57,15 +60,15 @@ class HotfixManager(Manager):
 
         if self.DEBUG > 0:
             print "Adding a tracking branch to your GitHub repo"
-        self.canon.push(
-            "{0}:{0}".format(branch),
-            set_upstream=True,
-        )
-        summary += [
-            "Pushed {} to {}".format(branch, self.canon),
-        ]
+        if not self.offline:
+            self.canon.push(
+                "{0}:{0}".format(branch),
+                set_upstream=True,
+            )
+            summary += [
+                "Pushed {} to {}".format(branch, self.canon),
+            ]
 
-        # simulate self._repo.branches.branch_name, which is what we really want
         return branch  # getattr(self._repo.branches, branch_name)
 
     def publish(self, name, tag_info, with_delete, summary):
@@ -86,7 +89,7 @@ class HotfixManager(Manager):
         # TODO: handle merge conflicts.
         # merge into master
         self.master.checkout()
-        self._repo.git.merge(
+        self.repo.git.merge(
             hotfix_name,
             no_ff=True,
         )
