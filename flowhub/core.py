@@ -28,7 +28,7 @@ from engine import Engine
 from managers import TagInfo
 
 
-__version__ = "0.5.1"
+__version__ = "0.5.1a"
 
 
 def future_proof_print(x):
