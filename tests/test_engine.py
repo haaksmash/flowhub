@@ -468,7 +468,7 @@ class OfflineReleaseTestCase(EngineTestCase, OfflineTestCase):
         self.assertTrue(self.engine._publish_release(name))
 
         self.release_m_mock.assert_has_calls([
-            mock.call().publish(name, True, TagInfo(None, None), mock.ANY)
+            mock.call().publish(name, True, None, mock.ANY)
         ])
 
     def test_publish_on_release_branch(self):
@@ -490,8 +490,7 @@ class OfflineReleaseTestCase(EngineTestCase, OfflineTestCase):
             self.engine._publish_release(
                 name,
                 with_delete=False,
-                tag_label=tag_label,
-                tag_message=tag_message,
+                tag_info=TagInfo(tag_label, tag_message),
             ),
         )
 
@@ -584,7 +583,7 @@ class OfflineHotfixTestCase(EngineTestCase, OfflineTestCase):
         self.assertTrue(self.engine._publish_hotfix(name))
 
         self.hotfix_m_mock.assert_has_calls([
-            mock.call().publish(name, TagInfo(None, None), True, mock.ANY),
+            mock.call().publish(name, None, True, mock.ANY),
         ])
 
         return_branch.assert_has_calls([
