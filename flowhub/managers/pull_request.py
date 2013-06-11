@@ -65,8 +65,8 @@ class PullRequestManager(Manager):
             issue = self.gh_repo.get_issue(int(issue_number))
             pr = self.gh_repo.create_pull(
                 issue=issue,
-                base=base,
-                head=head,
+                base=base.name,
+                head=head.name,
             )
             summary += [
                 "New pull request created: {} into {}"
@@ -84,8 +84,8 @@ class PullRequestManager(Manager):
     def create_pull(self, base, head, issue, summary):
         pr = self.gh_repo.create_pull(
             issue=issue,
-            base=base,
-            head=head,
+            base=base.name,
+            head=head.name,
         )
 
         summary += [
