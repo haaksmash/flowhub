@@ -55,7 +55,7 @@ class PullRequestManager(Manager):
         if self.DEBUG > 1:
             print "setting up new pull-request"
 
-        component_name = head.split('/')[-1]
+        component_name = head.name.split('/')[-1]
 
         # check for issue-numbers at the front of the branch name
         # if there is one, attach the pull-request to that issue.
