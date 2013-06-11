@@ -69,6 +69,9 @@ class HotfixManager(Manager):
         return branch  # getattr(self._repo.branches, branch_name)
 
     def publish(self, name, tag_info, with_delete, summary):
+        if self.offline:
+            return False
+
         hotfix_name = "{}{}".format(
             self._prefix,
             name,
@@ -147,6 +150,7 @@ class HotfixManager(Manager):
             summary += [
                 "Branch {} removed".format(hotfix_name),
             ]
+        return True
 
     def contribute(self, branch, summary):
         self.repo.git.push(
@@ -157,3 +161,5 @@ class HotfixManager(Manager):
         summary += [
             "Branch {} pushed to {}".format(branch, self.origin)
         ]
+
+        return True
