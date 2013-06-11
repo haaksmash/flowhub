@@ -80,39 +80,6 @@ class PullRequestManager(Manager):
 
         return False
 
-        is_issue = raw_input("is this feature answering an issue? [y/N] ").lower() == 'y'
-
-        if not is_issue:
-            issue = self._open_issue(return_values=True)
-
-            if self.DEBUG > 1:
-                print (issue.title, issue.body, base, head)
-
-        else:
-            good_number = False
-            while not good_number:
-                try:
-                    issue_number = int(raw_input("issue number: "))
-                except ValueError:
-                    print "that isn't a valid number."
-                    continue
-
-                try:
-                    issue = self.gh_repo.get_issue(issue_number)
-                except GithubException:
-                    print "that's not a valid issue."
-                    continue
-
-                good_number = True
-
-        pr = self.gh_repo.create_pull(
-            issue=issue,
-            base=base,
-            head=head,
-        )
-
-        return pr
-
     @sanitize_refs
     def create_pull(self, base, head, issue, summary):
         pr = self.gh_repo.create_pull(
@@ -122,13 +89,13 @@ class PullRequestManager(Manager):
         )
 
         summary += [
-                "New pull request created: {} into {}"
-                "\n\turl: {}".format(
-                    head,
-                    base,
-                    pr.issue_url,
-                )
-            ]
+            "New pull request created: {} into {}"
+            "\n\turl: {}".format(
+                head,
+                base,
+                pr.issue_url,
+            )
+        ]
 
         return pr
 
