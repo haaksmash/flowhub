@@ -29,6 +29,7 @@ import unittest
 import mock
 
 from flowhub.core import *
+from flowhub.managers import TagInfo
 from tests import id_generator
 
 
@@ -293,7 +294,14 @@ class ReleaseCallTestCase(CoreTestCase):
             ])
 
             self.engine_mock.assert_has_calls([
-                mock.call.publish_release(name=self.args.name, with_delete=not self.args.no_cleanup),
+                mock.call.publish_release(
+                    name=self.args.name,
+                    with_delete=not self.args.no_cleanup,
+                    tag_info=TagInfo(
+                        self.engine_mock.release.name.replace().strip(),
+                        "",
+                    )
+                ),
             ])
 
     def test_publish_failed_hook(self):
@@ -364,7 +372,13 @@ class HotfixCallTestCase(CoreTestCase):
             ])
 
             self.engine_mock.assert_has_calls([
-                mock.call.publish_hotfix(name=self.args.name),
+                mock.call.publish_hotfix(
+                    name=self.args.name,
+                    tag_info=TagInfo(
+                        self.engine_mock.hotfix.name.replace().strip(),
+                        "",
+                    )
+                ),
             ])
 
     def test_contribute(self):

@@ -592,8 +592,7 @@ class Engine(object):
         name=None,
         with_delete=True,
         summary=None,
-        tag_label=None,
-        tag_message=None,
+        tag_info=None,
     ):
         # fetch canon
         # checkout master
@@ -625,7 +624,6 @@ class Engine(object):
             name = name.replace(self._cr.flowhub.prefix.release, '')
             return_branch = self.develop
 
-        tag_info = TagInfo(tag_label, tag_message)
         self.release_manager.publish(name, with_delete, tag_info, summary)
 
         return_branch.checkout()
@@ -766,8 +764,7 @@ class Engine(object):
         name=None,
         summary=None,
         with_delete=True,
-        tag_label=None,
-        tag_message=None,
+        tag_info=None,
     ):
         # fetch canon
         # checkout master
@@ -792,7 +789,6 @@ class Engine(object):
             name = name.replace(self._cr.flowhub.prefix.hotfix, '')
             return_branch = self.develop
 
-        tag_info = TagInfo(tag_label, tag_message)
         self.hotfix_manager.publish(name, tag_info, with_delete, summary)
 
         return_branch.checkout()
