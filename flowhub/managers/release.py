@@ -46,19 +46,21 @@ class ReleaseManager(Manager):
         if self.DEBUG > 0:
             print "Adding a tracking branch to your GitHub repo"
 
-        self.canon.push(
-            "{0}:{0}".format(branch),
-            set_upstream=True,
-        )
+        if not self.offline:
+            self.canon.push(
+                "{0}:{0}".format(branch),
+                set_upstream=True,
+            )
 
-        summary += [
-            "Pushed {} to {}".format(branch, self.canon.name),
-        ]
+            summary += [
+                "Pushed {} to {}".format(branch, self.canon.name),
+            ]
 
-        # Checkout the branch.
         return branch
 
     def publish(self, name, with_delete, tag_info, summary):
+        if self.offline:
+            return False
         release_name = "{}{}".format(
             self._prefix,
             name,
@@ -123,6 +125,8 @@ class ReleaseManager(Manager):
                 "Branch {} removed".format(release_name),
             ]
 
+        return True
+
     def contribute(self, branch, summary):
 
         self.repo.git.push(
@@ -130,3 +134,6 @@ class ReleaseManager(Manager):
             branch,
             set_upstream=True,
         )
+        summary += [
+            "Branch {} pushed to {}".format(branch, self.origin)
+        ]
