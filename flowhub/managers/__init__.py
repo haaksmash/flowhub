@@ -33,6 +33,8 @@ class Manager(object):
         canon,
         master,
         develop,
+        release,
+        hotfix,
         repo,
         gh,
         offline
@@ -43,6 +45,10 @@ class Manager(object):
         self.canon = canon
         self.master = master
         self.develop = develop
+        self.release = release
+        self.hotfix = hotfix
         self.repo = repo
         self.gh = gh
         self.offline = offline
+
+
