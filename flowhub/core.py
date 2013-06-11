@@ -22,11 +22,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import argparse
 import os
 import subprocess
+import tempfile
 
 from engine import Engine
+from managers import TagInfo
 
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 
 def future_proof_print(x):
@@ -38,14 +40,61 @@ def do_hook(args, engine, hook_name, *hook_args):
         return True
 
     try:
+        hook_args = tuple(str(a) for a in hook_args)
         subprocess.check_call((os.path.join(engine._repo.git_dir, 'hooks', hook_name),) + hook_args)
         return True
-    except OSError:
+    except OSError as e:
         if args.verbosity > 2:
             print "No such hook: {}".format(hook_name)
+            print "({})".format(e)
         return True
     except subprocess.CalledProcessError:
         return False
+
+
+def create_tag_info(args, default_label=""):
+    label = raw_input("Tag Label [{}]: ".format(default_label)) or default_label
+
+    # Open the $EDITOR, if you can...
+    descr_f = tempfile.NamedTemporaryFile(delete=False)
+    descr_f.file.write(
+        "\n\n# Write the tag description above"
+    )
+    if args.verbosity > 3:
+        print "Temp file: ", descr_f.name
+    # regardless, close the tempfile.
+    descr_f.close()
+
+    try:
+        editor_result = subprocess.check_call(
+            "$EDITOR {}".format(descr_f.name),
+            shell=True
+        )
+    except OSError:
+        if args.verbosity > 2:
+            print "Hmm...are you on Windows?"
+        editor_result = 126
+
+    if args.verbosity > 3:
+        print "result of $EDITOR: ", editor_result
+
+    if editor_result == 0:
+        # Re-open the file to get new contents...
+        fnew = open(descr_f.name, 'r')
+        # and remove the first line
+        body = fnew.readlines()
+        if body[-1].startswith('# Write the tag description'):
+            body = body[:-1]
+
+        body = "".join(body)
+
+        fnew.close()
+    else:
+        body = raw_input(
+            "Tag message:\n"
+        )
+
+    return TagInfo(label.strip(), body.strip())
 
 
 def handle_init_call(args, engine, input_func=raw_input, output_func=future_proof_print):
@@ -112,7 +161,7 @@ def handle_feature_call(args, engine):
             args.name = "{}-{}".format(args.issue_number, args.name)
         engine.create_feature(
             name=args.name,
-            create_tracking_branch=args.track,
+            with_tracking=args.track,
         )
         do_hook(args, engine, "post-feature-start")
 
@@ -141,11 +190,13 @@ def handle_feature_call(args, engine):
         try:
             engine.accept_feature(
                 name=args.name,
+                delete_feature_branch=(not args.no_delete),
             )
         except AssertionError:
             # see #14
             engine.accept_feature(
                 name=args.name,
+                delete_feature_branch=(not args.no_delete),
             )
     elif args.action == 'list':
         engine.list_features()
@@ -164,14 +215,21 @@ def handle_hotfix_call(args, engine):
         )
         do_hook(args, engine, "post-hotfix-start", args.name)
     elif args.action == 'publish':
+        if not engine.hotfix:
+            return False
+
         if not do_hook(args, engine, "pre-hotfix-publish"):
             return False
 
-        engine.publish_hotfix(
+        default_tag = engine.hotfix.name.replace(
+            engine.hotfix_manager._prefix, ""
+        )
+        results = engine.publish_hotfix(
             name=args.name,
+            tag_info=create_tag_info(args, default_tag),
         )
 
-        do_hook(args, engine, "post-hotfix-publish", args.name)
+        do_hook(args, engine, "post-hotfix-publish", results)
 
     elif args.action == 'contribute':
         engine.contribute_hotfix()
@@ -190,14 +248,21 @@ def handle_release_call(args, engine):
         do_hook(args, engine, "post-release-start", args.name)
 
     elif args.action == 'publish':
+        if not engine.release:
+            return False
+
         if not do_hook(args, engine, "pre-release-publish"):
             return False
 
-        engine.publish_release(
-            name=args.name,
-            delete_release_branch=(not args.no_cleanup),
+        default_tag = engine.release.name.replace(
+            engine.release_manager._prefix, ""
         )
-        do_hook(args, engine, "post-release-publish", args.name)
+        results = engine.publish_release(
+            name=args.name,
+            tag_info=create_tag_info(args, default_tag),
+            with_delete=(not args.no_cleanup),
+        )
+        do_hook(args, engine, "post-release-publish", results)
 
     elif args.action == 'contribute':
         engine.contribute_release()
@@ -304,6 +369,8 @@ def run():
     faccepted.add_argument('name', nargs='?',
         default=None,
         help="name of the accepted feature. If not given, assumes current feature")
+    faccepted.add_argument('--no-delete', action='store_true', default=False,
+        help="don't delete the accepted feature branch")
     feature_subs.add_parser('list',
         help='list the feature names on this repository')
 

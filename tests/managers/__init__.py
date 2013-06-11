@@ -19,23 +19,3 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-import functools
-
-
-def with_summary(f):
-    """Prints a nice summary, assuming the function accepts a
-    'summary' kwarg and appends to it."""
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        summary = []
-        r = f(*args, summary=summary, **kwargs)
-        if summary:
-            summary = ['\nSummary of actions:'] + summary
-            print "\n - ".join(summary)
-
-        else:
-            print "No summary provided."
-
-        return r
-
-    return wrapper
