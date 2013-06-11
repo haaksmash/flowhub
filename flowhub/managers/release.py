@@ -116,7 +116,7 @@ class ReleaseManager(Manager):
         ]
 
         if with_delete:
-            self._repo.delete_head(release_name)
+            self.repo.delete_head(release_name)
             self.canon.push(
                 release_name,
                 delete=True,
