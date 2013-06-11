@@ -96,7 +96,7 @@ class ReleaseManager(Manager):
 
         # merge into develop
         self.develop.checkout()
-        self._repo.git.merge(
+        self.repo.git.merge(
             self.master,
             no_ff=True,
         )
