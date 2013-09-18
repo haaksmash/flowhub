@@ -450,7 +450,7 @@ def run():
 
     # Force initialization to run offline.
     if args.subparser == 'init':
-        e = Engine(debug=args.verbosity, offline=True)
+        e = Engine(debug=args.verbosity, INIT=True, offline=True)
         handle_init_call(args, e)
         return
 
