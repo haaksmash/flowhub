@@ -75,7 +75,7 @@ class EngineTestCase(unittest.TestCase):
 
 class OfflineTestCase(unittest.TestCase):
     def _produce_engine(self):
-        engine = Engine(INIT=True, offline=True)
+        engine = Engine(init=True, offline=True)
 
         self.repository_structure = {
             "name": id_generator(),
@@ -179,7 +179,7 @@ class OfflineTestCase(unittest.TestCase):
 
 class OnlineTestCase(unittest.TestCase):
     def _produce_engine(self):
-        engine = Engine(INIT=True)
+        engine = Engine(init=True)
 
         self.repository_structure = {
             "name": id_generator(),
@@ -282,11 +282,11 @@ class OfflineFeatureTestCase(EngineTestCase, OfflineTestCase):
         self._produce_engine()
 
     def test_start_all_defaults(self):
-        self.assertFalse(self.engine._create_feature())
+        self.assertFalse(self.engine.create_feature())
 
     def test_start(self):
         name = id_generator()
-        self.assertTrue(self.engine._create_feature(name))
+        self.assertTrue(self.engine.create_feature(name))
 
         self.feature_m_mock.assert_has_calls([
             mock.call().start(name, True, mock.ANY),
@@ -295,7 +295,7 @@ class OfflineFeatureTestCase(EngineTestCase, OfflineTestCase):
     def test_start_with_tracking(self):
         name = id_generator()
 
-        self.assertTrue(self.engine._create_feature(name, False))
+        self.assertTrue(self.engine.create_feature(name, False))
 
         self.feature_m_mock.assert_has_calls([
             mock.call().start(name, False, mock.ANY),
@@ -331,14 +331,14 @@ class OfflineFeatureTestCase(EngineTestCase, OfflineTestCase):
         self.assertEqual(branch.call_count, 0)
 
     def test_accept_all_defaults(self):
-        self.assertFalse(self.engine._accept_feature())
+        self.assertFalse(self.engine.accept_feature())
 
     def test_accept(self):
         name = id_generator()
         return_branch = mock.MagicMock()
         self.git_mock().head.reference = return_branch
 
-        self.assertTrue(self.engine._accept_feature(name))
+        self.assertTrue(self.engine.accept_feature(name))
 
         self.feature_m_mock.assert_has_calls([
             mock.call().accept(
@@ -357,7 +357,7 @@ class OfflineFeatureTestCase(EngineTestCase, OfflineTestCase):
         self.git_mock().head.reference.name = self.repository_structure['feature'] + name
         return_branch = self.engine.develop
 
-        self.assertTrue(self.engine._accept_feature())
+        self.assertTrue(self.engine.accept_feature())
 
         self.feature_m_mock.assert_has_calls([
             mock.call().accept(name, summary=mock.ANY, with_delete=True),
@@ -368,14 +368,14 @@ class OfflineFeatureTestCase(EngineTestCase, OfflineTestCase):
         ])
 
     def test_abandon_all_defaults(self):
-        self.assertFalse(self.engine._abandon_feature())
+        self.assertFalse(self.engine.abandon_feature())
 
     def test_abandon(self):
         name = id_generator()
         return_branch = mock.MagicMock()
         self.git_mock().head.reference = return_branch
 
-        self.assertTrue(self.engine._abandon_feature(name))
+        self.assertTrue(self.engine.abandon_feature(name))
 
         return_branch.assert_has_calls([
             mock.call.checkout(),
@@ -390,7 +390,7 @@ class OfflineFeatureTestCase(EngineTestCase, OfflineTestCase):
         self.git_mock().head.reference.name = self.repository_structure['feature'] + name
         return_branch = self.engine.develop
 
-        self.assertTrue(self.engine._abandon_feature())
+        self.assertTrue(self.engine.abandon_feature())
 
         return_branch.assert_has_calls([
             mock.call.checkout(),
@@ -401,12 +401,12 @@ class OfflineFeatureTestCase(EngineTestCase, OfflineTestCase):
         ])
 
     def test_publish_all_defaults(self):
-        self.assertFalse(self.engine._publish_feature())
+        self.assertFalse(self.engine.publish_feature())
 
     def test_publish(self):
         name = id_generator()
 
-        self.assertFalse(self.engine._publish_feature(name))
+        self.assertFalse(self.engine.publish_feature(name))
 
 
 class OnlineFeatureTestCase(EngineTestCase, OnlineTestCase):
@@ -419,7 +419,7 @@ class OnlineFeatureTestCase(EngineTestCase, OnlineTestCase):
         b = mock.MagicMock()
         self.feature_m_mock().publish.return_value = b
 
-        self.assertTrue(self.engine._publish_feature(name))
+        self.assertTrue(self.engine.publish_feature(name))
 
         self.feature_m_mock.assert_has_calls([
             mock.call().publish(name, mock.ANY),
@@ -432,13 +432,13 @@ class OfflineReleaseTestCase(EngineTestCase, OfflineTestCase):
         self._produce_engine()
 
     def test_start_all_defaults(self):
-        self.assertFalse(self.engine._start_release())
+        self.assertFalse(self.engine.start_release())
 
     def test_start(self):
         name = id_generator()
         new_branch = mock.MagicMock()
         self.release_m_mock().start.return_value = new_branch
-        self.assertTrue(self.engine._start_release(name))
+        self.assertTrue(self.engine.start_release(name))
 
         self.release_m_mock.assert_has_calls([
             mock.call().start(name, mock.ANY),
@@ -455,17 +455,17 @@ class OfflineReleaseTestCase(EngineTestCase, OfflineTestCase):
         release_mock.name.startswith.return_value = True
         self.git_mock().branches = [release_mock]
 
-        self.assertFalse(self.engine._start_release(name))
+        self.assertFalse(self.engine.start_release(name))
 
         self.assertEqual(self.release_m_mock().call_count, 0)
 
     def test_publish_all_defaults(self):
-        self.assertFalse(self.engine._publish_release())
+        self.assertFalse(self.engine.publish_release())
 
     def test_publish_with_name(self):
         name = id_generator()
 
-        self.assertTrue(self.engine._publish_release(name))
+        self.assertTrue(self.engine.publish_release(name))
 
         self.release_m_mock.assert_has_calls([
             mock.call().publish(name, True, None, mock.ANY)
@@ -475,7 +475,7 @@ class OfflineReleaseTestCase(EngineTestCase, OfflineTestCase):
         return_branch = self.engine.develop
         self.git_mock().head.reference.name = self.repository_structure['release'] + id_generator()
 
-        self.assertTrue(self.engine._publish_release())
+        self.assertTrue(self.engine.publish_release())
 
         return_branch.assert_has_calls([
             mock.call.checkout(),
@@ -487,7 +487,7 @@ class OfflineReleaseTestCase(EngineTestCase, OfflineTestCase):
         tag_message = id_generator()
 
         self.assertTrue(
-            self.engine._publish_release(
+            self.engine.publish_release(
                 name,
                 with_delete=False,
                 tag_info=TagInfo(tag_label, tag_message),
@@ -516,7 +516,7 @@ class OnlineReleaseTestCase(EngineTestCase, OnlineTestCase):
 
         self.git_mock().head.reference.object.iter_parents.return_value = [True]
 
-        self.assertTrue(self.engine._contribute_release())
+        self.assertTrue(self.engine.contribute_release())
 
         self.release_m_mock.assert_has_calls([
             mock.call().contribute(self.git_mock().head.reference, mock.ANY),
@@ -529,13 +529,13 @@ class OfflineHotfixTestCase(EngineTestCase, OfflineTestCase):
         self._produce_engine()
 
     def test_start_all_defaults(self):
-        self.assertFalse(self.engine._start_hotfix())
+        self.assertFalse(self.engine.start_hotfix())
 
     def test_start(self):
         name = id_generator()
         return_branch = self.hotfix_m_mock().start()
 
-        self.assertTrue(self.engine._start_hotfix(name))
+        self.assertTrue(self.engine.start_hotfix(name))
 
         self.hotfix_m_mock.assert_has_calls([
             mock.call().start(name, None, mock.ANY),
@@ -550,7 +550,7 @@ class OfflineHotfixTestCase(EngineTestCase, OfflineTestCase):
         issues = mock.MagicMock()
         return_branch = self.hotfix_m_mock().start()
 
-        self.assertTrue(self.engine._start_hotfix(name, issues))
+        self.assertTrue(self.engine.start_hotfix(name, issues))
 
         self.hotfix_m_mock.assert_has_calls([
             mock.call().start(name, issues, mock.ANY),
@@ -567,12 +567,12 @@ class OfflineHotfixTestCase(EngineTestCase, OfflineTestCase):
         hotfix_mock.name.startswith.return_value = True
         self.git_mock().branches = [hotfix_mock]
 
-        self.assertFalse(self.engine._start_hotfix(name))
+        self.assertFalse(self.engine.start_hotfix(name))
 
         self.assertEqual(self.hotfix_m_mock().call_count, 0)
 
     def test_publish_all_defaults(self):
-        self.assertFalse(self.engine._publish_hotfix())
+        self.assertFalse(self.engine.publish_hotfix())
 
     def test_publish_not_on_hotfix_branch(self):
         name = id_generator()
@@ -580,7 +580,7 @@ class OfflineHotfixTestCase(EngineTestCase, OfflineTestCase):
         return_branch = mock.MagicMock()
         self.git_mock().head.reference = return_branch
 
-        self.assertTrue(self.engine._publish_hotfix(name))
+        self.assertTrue(self.engine.publish_hotfix(name))
 
         self.hotfix_m_mock.assert_has_calls([
             mock.call().publish(name, None, True, mock.ANY),
@@ -594,14 +594,14 @@ class OfflineHotfixTestCase(EngineTestCase, OfflineTestCase):
         return_branch = self.engine.develop
         self.git_mock().head.reference.name = self.repository_structure['hotfix'] + id_generator()
 
-        self.assertTrue(self.engine._publish_hotfix())
+        self.assertTrue(self.engine.publish_hotfix())
 
         return_branch.assert_has_calls([
             mock.call.checkout(),
         ])
 
     def test_contribute(self):
-        self.assertFalse(self.engine._contribute_hotfix())
+        self.assertFalse(self.engine.contribute_hotfix())
 
 
 class OnlineHotfixTestCase(EngineTestCase, OnlineTestCase):
@@ -618,7 +618,7 @@ class OnlineHotfixTestCase(EngineTestCase, OnlineTestCase):
 
         self.git_mock().head.reference.object.iter_parents.return_value = [True]
 
-        self.assertTrue(self.engine._contribute_hotfix())
+        self.assertTrue(self.engine.contribute_hotfix())
 
         self.release_m_mock.assert_has_calls([
             mock.call().contribute(self.git_mock().head.reference, mock.ANY),
@@ -626,7 +626,7 @@ class OnlineHotfixTestCase(EngineTestCase, OnlineTestCase):
 
     def test_contribute_on_wrong_branch_by_existance(self):
         self.git_mock().branches = []
-        self.assertFalse(self.engine._contribute_hotfix())
+        self.assertFalse(self.engine.contribute_hotfix())
 
     def test_contribute_on_wrong_branch_by_commit(self):
         hotfix_mock = mock.MagicMock()
@@ -638,5 +638,5 @@ class OnlineHotfixTestCase(EngineTestCase, OnlineTestCase):
         hotfix_mock.commit = False
         self.git_mock().head.reference.object.iter_parents.return_value = [True]
 
-        self.assertFalse(self.engine._contribute_hotfix())
+        self.assertFalse(self.engine.contribute_hotfix())
 

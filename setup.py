@@ -26,7 +26,7 @@ import os
 
 setup(
     name="flowhub",
-    version='0.5.2',
+    version='0.5.3',
     description="Git-flow adapted for GitHub",
     long_description=open("README.txt").read(),
     author="Haak Saxberg",
@@ -39,6 +39,6 @@ setup(
     install_requires=[
         'GitPython == 0.3.2.RC1',
         'PyGithub > 1.14',
-        'argcomplete >= 0.63',
+        'argcomplete >= 0.6.3',
     ],
 )
