@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 """
 Copyright (C) 2012 Haak Saxberg
 
@@ -20,6 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 import argparse
+import argcomplete
 import os
 import subprocess
 import tempfile
@@ -444,6 +446,7 @@ def run():
     istart.add_argument('--create-branch', '-b', default=False, action='store_true',
         help="Create a feature branch for this issue.")
 
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
     if args.verbosity > 2:
         print "Args: ", args
