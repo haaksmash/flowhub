@@ -29,7 +29,7 @@ import git
 from github import Github, GithubException
 
 from configurator import Configurator, ImproperlyConfigured
-from decorators import with_summary
+from decorators import with_summary, online_only
 from managers import TagInfo
 from managers.feature import FeatureManager
 from managers.hotfix import HotfixManager
@@ -46,19 +46,8 @@ class NoSuchRemote(NoSuchObject):
     pass
 
 
-def online_only(method):
-    def wrapper(self, *args, **kwargs):
-        if self.offline:
-            print "not available offline"
-            return False
-
-        return method(self, *args, **kwargs)
-
-    return wrapper
-
-
 class Engine(object):
-    def __init__(self, debug=0, INIT=False, offline=False):
+    def __init__(self, debug=0, init=False, offline=False):
         self.DEBUG = debug
         if self.DEBUG > 2:
             print "initing engine"
@@ -98,7 +87,7 @@ class Engine(object):
             if self.DEBUG > 0:
                 print "Skipping auth - GitHub accesses will fail."
 
-        if not INIT:
+        if not init:
             self.feature_manager = FeatureManager(
                 debug=self.DEBUG,
                 prefix=self._cr.flowhub.prefix.feature,

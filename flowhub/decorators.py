@@ -39,3 +39,14 @@ def with_summary(f):
         return r
 
     return wrapper
+
+
+def online_only(method):
+    def wrapper(self, *args, **kwargs):
+        if self.offline:
+            print "not available offline"
+            return False
+
+        return method(self, *args, **kwargs)
+
+    return wrapper
