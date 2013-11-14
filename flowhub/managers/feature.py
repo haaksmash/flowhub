@@ -50,6 +50,7 @@ class FeatureManager(Manager):
                 branch_name,
                 set_upstream=True
             )
+
             summary += [
                 "Created a remote tracking branch on {} for {}".format(
                     self.origin.name,
