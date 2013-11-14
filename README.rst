@@ -47,8 +47,9 @@ works on Ubuntu), and might or might not work on Windows (a new frontier!).
 
 Flowhub now also supports tab-completion in bash and (partially...) in zsh! See
 the `argcomplete docs <https://argcomplete.readthedocs.org/en/latest/#global-completion>`_
-for more info about how to enable this sweetness for yourself! zsh users: you have some
-exercise-left-to-the-reader work to do.
+for more info about how to enable this sweetness for yourself! zsh users: zsh is totally
+capable of handling bash completion scripts, but it's gonna take a little more effort to
+make it work.
 
 
 What Can Flowhub Do?
