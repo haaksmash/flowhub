@@ -45,6 +45,10 @@ See ``flowhub -h`` and its descendants for more information.
 Flowhub definitely works on OSX and probably works on Linux (last I checked, it
 works on Ubuntu), and might or might not work on Windows (a new frontier!).
 
+Flowhub now also supports tab-completion in bash and (partially...) in zsh! See
+the `argcomplete docs <https://argcomplete.readthedocs.org/en/latest/#global-completion>`_
+for more info about how to enable this sweetness for yourself! zsh users: you have some
+exercise-left-to-the-reader work to do.
 
 
 What Can Flowhub Do?
