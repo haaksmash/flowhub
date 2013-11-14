@@ -330,7 +330,7 @@ class Engine(object):
 
         is_issue = raw_input("is this feature answering an issue? [y/N] ").lower() == 'y'
         if not is_issue:
-            issue = self._open_issue(summary=summary, return_issue=True)
+            issue = self.open_issue(summary=summary, return_issue=True)
 
             if self.DEBUG > 1:
                 print (issue.title, issue.body, base, head)
