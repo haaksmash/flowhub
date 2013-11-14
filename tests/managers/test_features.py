@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from flowhub.managers.feature import FeatureManager
 
-from managers import ManagerTestCase
+from tests.managers import ManagerTestCase
 
 
 class OfflineFMTestCase(ManagerTestCase):
