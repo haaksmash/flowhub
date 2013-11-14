@@ -22,20 +22,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import functools
 
 
-def with_summary(f):
-    """Prints a nice summary, assuming the function accepts a
-    'summary' kwarg and appends to it."""
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        summary = []
-        r = f(*args, summary=summary, **kwargs)
-        if summary:
-            summary = ['\nSummary of actions:'] + summary
-            print "\n - ".join(summary)
+def online_only(method):
+    def wrapper(self, *args, **kwargs):
+        if self.offline:
+            print "not available offline"
+            return False
 
-        else:
-            print "No summary provided."
-
-        return r
+        return method(self, *args, **kwargs)
 
     return wrapper

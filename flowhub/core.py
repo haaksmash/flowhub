@@ -269,6 +269,8 @@ def handle_release_call(args, engine):
 
     elif args.action == 'contribute':
         engine.contribute_release()
+    elif args.action == 'stage':
+        engine.stage_release()
     else:
         raise RuntimeError("Unimplemented command for releases: {}".format(args.action))
 
@@ -476,7 +478,7 @@ def run():
 
     # Force initialization to run offline.
     if args.subparser == 'init':
-        e = Engine(debug=args.verbosity, INIT=True, offline=True)
+        e = Engine(debug=args.verbosity, init=True, offline=True)
         handle_init_call(args, e)
         return
 
@@ -500,6 +502,11 @@ def run():
 
     else:
         raise RuntimeError("Unrecognized command: {}".format(args.subparser))
+
+    if e.summary:
+        summary = ['\nSummary of actions:'] + e.summary
+        print "\n - ".join(summary)
+
 
 if __name__ == "__main__":
     run()

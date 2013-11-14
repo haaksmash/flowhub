@@ -29,7 +29,7 @@ import git
 from github import Github, GithubException
 
 from configurator import Configurator, ImproperlyConfigured
-from decorators import with_summary
+from decorators import online_only
 from managers import TagInfo
 from managers.feature import FeatureManager
 from managers.hotfix import HotfixManager
@@ -46,24 +46,14 @@ class NoSuchRemote(NoSuchObject):
     pass
 
 
-def online_only(method):
-    def wrapper(self, *args, **kwargs):
-        if self.offline:
-            print "not available offline"
-            return False
-
-        return method(self, *args, **kwargs)
-
-    return wrapper
-
-
 class Engine(object):
-    def __init__(self, debug=0, INIT=False, offline=False):
+    def __init__(self, debug=0, init=False, offline=False):
         self.DEBUG = debug
         if self.DEBUG > 2:
             print "initing engine"
 
         # assume flowhub is called from within a git repository
+        self.summary = []
         self._repo = git.Repo(".")
         self._cr = Configurator(self._repo.config_reader())
 
@@ -98,7 +88,7 @@ class Engine(object):
             if self.DEBUG > 0:
                 print "Skipping auth - GitHub accesses will fail."
 
-        if not INIT:
+        if not init:
             self.feature_manager = FeatureManager(
                 debug=self.DEBUG,
                 prefix=self._cr.flowhub.prefix.feature,
@@ -333,7 +323,6 @@ class Engine(object):
             return None
 
     def _create_pull_request(self, base, head, summary):
-
         # try to glean issue numbers from branch
         pr_from_issue = self.pull_manager.create_from_branch_name(base, head, summary)
         if pr_from_issue:
@@ -371,13 +360,13 @@ class Engine(object):
 
         return pr
 
-    def _create_feature(self, name=None, with_tracking=True, summary=None):
+    def create_feature(self, name=None, with_tracking=True, summary=None):
         if name is None:
             print "please provide a feature name."
             return False
 
         if summary is None:
-            summary = []
+            summary = self.summary
 
         branch = self.feature_manager.start(
             name,
@@ -392,7 +381,6 @@ class Engine(object):
         ]
 
         return True
-    create_feature = with_summary(_create_feature)
 
     def work_feature(self, name=None):
         """Simply checks out the feature branch for the named feature."""
@@ -416,9 +404,9 @@ class Engine(object):
 
         return True
 
-    def _accept_feature(self, name=None, delete_feature_branch=True, summary=None):
+    def accept_feature(self, name=None, delete_feature_branch=True, summary=None):
         if summary is None:
-            summary = []
+            summary = self.summary
 
         return_branch = self._repo.head.reference
         if name is None:
@@ -447,11 +435,10 @@ class Engine(object):
         ]
 
         return True
-    accept_feature = with_summary(_accept_feature)
 
-    def _abandon_feature(self, name=None, summary=None):
+    def abandon_feature(self, name=None, summary=None):
         if summary is None:
-            summary = []
+            summary = self.summary
         return_branch = self._repo.head.reference
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
@@ -486,12 +473,11 @@ class Engine(object):
             summary=summary,
         )
         return True
-    abandon_feature = with_summary(_abandon_feature)
 
     @online_only
-    def _publish_feature(self, name=None, summary=None):
+    def publish_feature(self, name=None, summary=None):
         if summary is None:
-            summary = []
+            summary = self.summary
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a feature branch.
@@ -516,7 +502,6 @@ class Engine(object):
                 pr = self._create_pull_request(base, branch, summary)
 
         return True
-    publish_feature = with_summary(_publish_feature)
 
     def list_features(self):
         features = [
@@ -543,13 +528,13 @@ class Engine(object):
 
         return features
 
-    def _start_release(self, name=None, summary=None):
+    def start_release(self, name=None, summary=None):
         # checkout develop
         # if already release branch, abort.
         # checkout -b relase_prefix+branch_name
 
         if summary is None:
-            summary = []
+            summary = self.summary
 
         if name is None:
             print "Please provide a release name."
@@ -575,19 +560,17 @@ class Engine(object):
         ]
 
         return True
-    start_release = with_summary(_start_release)
 
-    @with_summary
-    def stage_release(self, summary=None):
-        summary += [
+    def stage_release(self):
+        self.summary += [
             "Release branch sent off to stage",
         ]
-        summary += [
+        self.summary += [
             "Release branch checked out and refreshed on stage."
             "\n\nLOL just kidding, this doesn't do anything."
         ]
 
-    def _publish_release(
+    def publish_release(
         self,
         name=None,
         with_delete=True,
@@ -608,7 +591,7 @@ class Engine(object):
         return_branch = self._repo.head.reference
 
         if summary is None:
-            summary = []
+            summary = self.summary
 
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
@@ -631,12 +614,11 @@ class Engine(object):
             "Checked out branch {}".format(return_branch.name),
         ]
         return name
-    publish_release = with_summary(_publish_release)
 
     @online_only
-    def _contribute_release(self, summary=None):
+    def contribute_release(self, summary=None):
         if summary is None:
-            summary = []
+            summary = self.summary
 
         if not (self.release and self.release.commit in self._repo.head.reference.object.iter_parents()):
             # Don't allow random branches to be contributed.
@@ -656,10 +638,8 @@ class Engine(object):
             pr = self._create_pull_request(self.release, branch, summary)
 
         return True
-    contribute_release = with_summary(_contribute_release)
 
-    @with_summary
-    def cleanup_branches(self, summary=None, targets=""):
+    def cleanup_branches(self, targets=""):
         current_branch = self._repo.head.reference
         hotfix_prefix = self._cr.flowhub.prefix.hotfix
         release_prefix = self._cr.flowhub.prefix.release
@@ -692,7 +672,7 @@ class Engine(object):
                         self._repo.delete_head(branch.name, force=True)
                     else:
                         self._repo.delete_head(branch.name)
-                    summary += [
+                    self.summary += [
                         "Deleted local branch {}".format(branch.name)
                     ]
 
@@ -703,7 +683,7 @@ class Engine(object):
                             remote_name,
                             delete=True,
                         )
-                        summary[-1] += ' and remote branch {}'.format(remote_branch.name)
+                        self.summary[-1] += ' and remote branch {}'.format(remote_branch.name)
                     else:
                         # Sometimes the tracking isn't set properly (at least for empty featuers?)
                         # so, we brute it here.
@@ -712,7 +692,7 @@ class Engine(object):
                                 branch.name,
                                 delete=True,
                             )
-                            summary[-1] += '\n\tand remote branch {}/{}'.format(
+                            self.summary[-1] += '\n\tand remote branch {}/{}'.format(
                                 self.origin.name,
                                 branch.name,
                             )
@@ -721,12 +701,12 @@ class Engine(object):
                     print e
                     continue
 
-    def _start_hotfix(self, name=None, issues=None, summary=None):
+    def start_hotfix(self, name=None, issues=None, summary=None):
         # Checkout master
         # if already hotfix branch, abort.
         # checkout -b hotfix_prefix+branch_name
         if summary is None:
-            summary = []
+            summary = self.summary
 
         if name is None:
             print "Please provide a release name."
@@ -757,9 +737,7 @@ class Engine(object):
         ]
         return True
 
-    start_hotfix = with_summary(_start_hotfix)
-
-    def _publish_hotfix(
+    def publish_hotfix(
         self,
         name=None,
         summary=None,
@@ -777,7 +755,7 @@ class Engine(object):
         return_branch = self._repo.head.reference
 
         if summary is None:
-            summary = []
+            summary = self.summary
         if name is None:
             # If no name specified, try to use the currently checked-out branch,
             # but only if it's a hotfix branch.
@@ -797,10 +775,9 @@ class Engine(object):
         ]
 
         return name
-    publish_hotfix = with_summary(_publish_hotfix)
 
     @online_only
-    def _contribute_hotfix(self, summary=None):
+    def contribute_hotfix(self, summary=None):
         if not (self.hotfix and self.hotfix.commit in self._repo.head.reference.object.iter_parents()):
             # Don't allow random branches to be contributed.
             print (
@@ -819,10 +796,9 @@ class Engine(object):
             self._create_pull_request(self.hotfix, branch, summary)
 
         return True
-    contribute_release = with_summary(_contribute_release)
 
     @online_only
-    def _open_issue(
+    def open_issue(
         self,
         title=None,
         labels=None,
@@ -839,7 +815,7 @@ class Engine(object):
             labels = []
 
         if summary is None:
-            summary = []
+            summary = self.summary
 
         # Open the $EDITOR, if you can...
         descr_f = tempfile.NamedTemporaryFile(delete=False)
@@ -895,4 +871,3 @@ class Engine(object):
         if return_issue:
             return issue
 
-    open_issue = with_summary(_open_issue)
