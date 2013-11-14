@@ -39,5 +39,6 @@ setup(
     install_requires=[
         'GitPython == 0.3.2.RC1',
         'PyGithub > 1.14',
+        'argcomplete >= 0.63',
     ],
 )
