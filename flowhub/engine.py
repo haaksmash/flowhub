@@ -555,8 +555,7 @@ class Engine(object):
         branch.checkout()
 
         summary += [
-            "Checked out branch {}"
-            "\n\nBump the release version now!".format(branch)
+            "Checked out branch {}",
         ]
 
         return True
