@@ -26,7 +26,7 @@ import os
 
 setup(
     name="flowhub",
-    version='0.5.2',
+    version='0.5.3',
     description="Git-flow adapted for GitHub",
     long_description=open("README.txt").read(),
     author="Haak Saxberg",
