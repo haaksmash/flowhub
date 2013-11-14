@@ -31,7 +31,7 @@ from engine import Engine
 from managers import TagInfo
 
 
-__version__ = "0.5.1a"
+__version__ = "0.5.4"
 
 
 def future_proof_print(x):
@@ -314,10 +314,13 @@ def handle_issue_call(args, engine):
 
 def run():
     parser = argparse.ArgumentParser()
-    offline_engine = Engine(debug=0, offline=True)
-    repo =  git.Repo()
+    try:
+        offline_engine = Engine(debug=0, offline=True)
+        repo =  git.Repo()
 
-    FEATURE_PREFIX = offline_engine._cr.flowhub.prefix.feature
+        FEATURE_PREFIX = offline_engine._cr.flowhub.prefix.feature
+    except AttributeError:
+        offline_engine = None
 
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
     parser.add_argument('--offline', action='store_true', default=False,
@@ -357,44 +360,52 @@ def run():
 
     fwork = feature_subs.add_parser('work',
         help="switch to a different feature (by name)")
-    fwork.add_argument('identifier', help="name of feature to switch to")
+    fwork_name = fwork.add_argument('identifier', help="name of feature to switch to")
+    if offline_engine is not None:
+        fwork_name.completer = argcomplete.completers.ChoicesCompleter(
+            [branch.name.split(FEATURE_PREFIX)[1] for branch in repo.branches
+                if branch.name.startswith(FEATURE_PREFIX)],
+        )
     fwork.add_argument('--issue', '-i',
         action='store_true', default=False,
         help='switch to a branch by issue number instead of by name')
 
     fpublish = feature_subs.add_parser('publish',
         help="send the current feature branch to origin and create a pull-request")
-    fpublish.add_argument('name', nargs='?',
+    fpublish_name = fpublish.add_argument('name', nargs='?',
         default=None,
         help='name of feature to publish. If not given, uses current feature',
-    ).completer = argcomplete.completers.ChoicesCompleter(
-        [
-            branch.name.split(FEATURE_PREFIX)[1] for branch in repo.branches
-            if branch.name.startswith(FEATURE_PREFIX)],
     )
+    if offline_engine is not None:
+        fpublish_name.completer = argcomplete.completers.ChoicesCompleter(
+            [branch.name.split(FEATURE_PREFIX)[1] for branch in repo.branches
+                if branch.name.startswith(FEATURE_PREFIX)],
+        )
 
     fabandon = feature_subs.add_parser('abandon',
         help="remove a feature branch completely"
     )
-    fabandon.add_argument('name', nargs='?',
+    fabandon_name = fabandon.add_argument('name', nargs='?',
         default=None,
         help="name of the feature to abandon. If not given, uses current feature",
-    ).completer = argcomplete.completers.ChoicesCompleter(
-        [
-            branch.name.split(FEATURE_PREFIX)[1] for branch in repo.branches
-            if branch.name.startswith(FEATURE_PREFIX)],
     )
+    if offline_engine is not None:
+        fabandon_name.completer = argcomplete.completers.ChoicesCompleter(
+            [branch.name.split(FEATURE_PREFIX)[1] for branch in repo.branches
+                if branch.name.startswith(FEATURE_PREFIX)],
+        )
 
     faccepted = feature_subs.add_parser('accepted',
         help="declare that a feature was accepted into the trunk")
-    faccepted.add_argument('name', nargs='?',
+    faccepted_name = faccepted.add_argument('name', nargs='?',
         default=None,
         help="name of the accepted feature. If not given, assumes current feature",
-    ).completer = argcomplete.completers.ChoicesCompleter(
-        [
-            branch.name.split(FEATURE_PREFIX)[1] for branch in repo.branches
-            if branch.name.startswith(FEATURE_PREFIX)],
     )
+    if offline_engine is not None:
+        faccepted_name.completer = argcomplete.completers.ChoicesCompleter(
+            [branch.name.split(FEATURE_PREFIX)[1] for branch in repo.branches
+                if branch.name.startswith(FEATURE_PREFIX)],
+        )
 
     faccepted.add_argument('--no-delete', action='store_true', default=False,
         help="don't delete the accepted feature branch")
