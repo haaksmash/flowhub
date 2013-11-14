@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 """
 Copyright (C) 2012 Haak Saxberg
 
@@ -20,6 +21,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 import argparse
+import argcomplete
+import git
 import os
 import subprocess
 import tempfile
@@ -309,6 +312,11 @@ def handle_issue_call(args, engine):
 
 def run():
     parser = argparse.ArgumentParser()
+    offline_engine = Engine(debug=0, offline=True)
+    repo =  git.Repo()
+
+    FEATURE_PREFIX = offline_engine._cr.flowhub.prefix.feature
+
     parser.add_argument('-v', '--verbosity', action="store", type=int, default=0)
     parser.add_argument('--offline', action='store_true', default=False,
         help='do not talk to GitHub',)
@@ -356,19 +364,36 @@ def run():
         help="send the current feature branch to origin and create a pull-request")
     fpublish.add_argument('name', nargs='?',
         default=None,
-        help='name of feature to publish. If not given, uses current feature')
+        help='name of feature to publish. If not given, uses current feature',
+    ).completer = argcomplete.completers.ChoicesCompleter(
+        [
+            branch.name.split(FEATURE_PREFIX)[1] for branch in repo.branches
+            if branch.name.startswith(FEATURE_PREFIX)],
+    )
 
     fabandon = feature_subs.add_parser('abandon',
         help="remove a feature branch completely"
     )
     fabandon.add_argument('name', nargs='?',
         default=None,
-        help="name of the feature to abandon. If not given, uses current feature")
+        help="name of the feature to abandon. If not given, uses current feature",
+    ).completer = argcomplete.completers.ChoicesCompleter(
+        [
+            branch.name.split(FEATURE_PREFIX)[1] for branch in repo.branches
+            if branch.name.startswith(FEATURE_PREFIX)],
+    )
+
     faccepted = feature_subs.add_parser('accepted',
         help="declare that a feature was accepted into the trunk")
     faccepted.add_argument('name', nargs='?',
         default=None,
-        help="name of the accepted feature. If not given, assumes current feature")
+        help="name of the accepted feature. If not given, assumes current feature",
+    ).completer = argcomplete.completers.ChoicesCompleter(
+        [
+            branch.name.split(FEATURE_PREFIX)[1] for branch in repo.branches
+            if branch.name.startswith(FEATURE_PREFIX)],
+    )
+
     faccepted.add_argument('--no-delete', action='store_true', default=False,
         help="don't delete the accepted feature branch")
     feature_subs.add_parser('list',
@@ -444,6 +469,7 @@ def run():
     istart.add_argument('--create-branch', '-b', default=False, action='store_true',
         help="Create a feature branch for this issue.")
 
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
     if args.verbosity > 2:
         print "Args: ", args
