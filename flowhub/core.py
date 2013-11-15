@@ -177,12 +177,7 @@ def handle_feature_call(args, engine):
     elif args.action == 'publish':
         if not do_hook(args, engine, "pre-feature-publish"):
             return False
-        try:
-            engine.publish_feature(name=args.name)
-        except AssertionError:
-            # This is janky as shit, but running twice fixes it.
-            # see #14
-            engine.publish_feature(name=args.name)
+        engine.publish_feature(name=args.name)
 
     elif args.action == 'abandon':
         engine.abandon_feature(
@@ -190,17 +185,11 @@ def handle_feature_call(args, engine):
         )
 
     elif args.action == 'accepted':
-        try:
-            engine.accept_feature(
-                name=args.name,
-                delete_feature_branch=(not args.no_delete),
-            )
-        except AssertionError:
-            # see #14
-            engine.accept_feature(
-                name=args.name,
-                delete_feature_branch=(not args.no_delete),
-            )
+        engine.accept_feature(
+            name=args.name,
+            delete_feature_branch=(not args.no_delete),
+        )
+
     elif args.action == 'list':
         engine.list_features()
     else:
