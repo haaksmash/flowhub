@@ -37,8 +37,8 @@ setup(
         os.path.join('bin', 'flowhub')
     ],
     install_requires=[
-        'GitPython == 0.3.2.RC1',
-        'PyGithub > 1.14',
-        'argcomplete >= 0.6.3',
+        'GitPython == 0.3.6',
+        'PyGithub > 1.25.1',
+        'argcomplete >= 0.8.9',
     ],
 )
