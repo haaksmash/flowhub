@@ -31,6 +31,10 @@ class ImproperlyConfigured(Exception):
 class Configurator(object):
     """Supports configuration files with subsections, given git.config.write
     instances"""
+    _confer = None
+    _read_only = True
+    _sections = None
+
     def __init__(self, config_object):
         self._confer = config_object
         self._read_only = config_object.read_only
