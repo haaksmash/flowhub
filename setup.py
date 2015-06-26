@@ -24,11 +24,19 @@ from distutils.core import setup
 from setuptools import find_packages
 import os
 
+def get_readme():
+    if os.path.isfile("README.txt"):
+        filename = "README.txt"
+    else:
+        filename = "README.rst"
+    with open(filename, 'r') as f:
+        return f.read()
+
 setup(
     name="flowhub",
     version='0.5.4',
     description="Git-flow adapted for GitHub",
-    long_description=open("README.txt").read(),
+    long_description=get_readme(),
     author="Haak Saxberg",
     author_email="haak.erling@gmail.com",
     url="http://github.com/haaksmash/flowhub",

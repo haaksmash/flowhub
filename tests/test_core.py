@@ -20,78 +20,120 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 import itertools
+import pytest
 import os
-import random
 import string
 from subprocess import CalledProcessError
-import unittest
 
 import mock
 
-from flowhub.core import *
+from flowhub.core import (
+    do_hook, handle_init_call, handle_issue_call, handle_hotfix_call,
+    handle_cleanup_call, handle_feature_call, handle_release_call, create_tag_info
+)
 from flowhub.managers import TagInfo
-from tests import id_generator
 
 
-class CoreTestCase(unittest.TestCase):
-    def setUp(self):
-        self.engine_patch = mock.patch("flowhub.engine.Engine")
-
-        self.args = mock.MagicMock()
-        self.engine_mock = self.engine_patch.start()
-
-    def tearDown(self):
-        self.engine_patch.stop()
+@pytest.yield_fixture
+def engine():
+    with mock.patch("flowhub.engine.Engine") as engine_mock:
+        yield engine_mock
 
 
-class HookTestCase(CoreTestCase):
-    def setUp(self):
-        super(HookTestCase, self).setUp()
+@pytest.fixture
+def args():
+    return mock.MagicMock()
 
-        self.subprocess_patch = mock.patch('subprocess.check_call')
-        self.subprocess_mock = self.subprocess_patch.start()
 
-    def tearDown(self):
-        self.subprocess_patch.stop()
+@pytest.yield_fixture
+def subprocess_check_call():
+    with mock.patch('subprocess.check_call') as subprocess_mock:
+        yield subprocess_mock
 
-        super(HookTestCase, self).tearDown()
 
-    def test_no_verify(self):
-        self.args.no_verify = True
+@pytest.yield_fixture
+def create_tag_info_mock():
+    with mock.patch('flowhub.core.create_tag_info') as tag_info:
+        yield tag_info
 
-        self.assertTrue(do_hook(self.args, self.engine_mock, id_generator()))
-        self.assertEqual(self.subprocess_mock.call_count, 0)
 
-    def test_successful_hook(self):
-        self.args.no_verify = False
+class CreateTagInfoTestCase(object):
+
+    @pytest.yield_fixture(autouse=True)
+    def mock_stdlib(self):
+        with mock.patch('subprocess.check_call') as self.check_call, \
+            mock.patch('tempfile.NamedTemporaryFile') as self.tempfile, \
+            mock.patch('__builtin__.open') as self.open:
+            yield
+
+    def test_default_behaviors(self, args, subprocess_check_call):
+        # "default" includes the editor being available and working
+        subprocess_check_call.return_value = 0
+        self.open.return_value.readlines.return_value = [
+            'a bunch of',
+            'individual',
+            'lines',
+        ]
+        tag_info = create_tag_info(args, lambda s: "the_tag")
+
+        assert tag_info == TagInfo("the_tag", "a bunch of individual lines")
+        subprocess_check_call.assert_called_once_with(
+            "$EDITOR {}".format(self.tempfile.return_value.name),
+            shell=True,
+        )
+        self.open.assert_called_once_with(self.tempfile.return_value.name, 'r')
+        self.open.return_value.close.assert_called_once_with()
+        self.tempfile.return_value.close.assert_called_once_with()
+
+    def test_handles_editor_failure(self, args, subprocess_check_call):
+        subprocess_check_call.side_effect = OSError
+
+        inputs = ["", "the body is here"]
+        input_gen = itertools.islice(inputs, None)
+
+        tag_info = create_tag_info(args, lambda s: input_gen.next())
+
+        assert tag_info == TagInfo("", "the body is here")
+        assert self.open.call_count == 0
+
+
+class HookTestCase(object):
+    def test_no_verify(self, engine, args, id_generator, subprocess_check_call):
+        args.no_verify = True
+
+        assert do_hook(args, engine, id_generator())
+        assert subprocess_check_call.call_count == 0
+
+    def test_successful_hook(self, args, engine, subprocess_check_call, id_generator):
+        args.no_verify = False
         hook_name = id_generator()
-        self.engine_mock._repo.git_dir = id_generator()
+        engine._repo.git_dir = id_generator()
 
-        self.assertTrue(do_hook(self.args, self.engine_mock, hook_name))
-        self.subprocess_mock.assert_has_calls([
+        assert do_hook(args, engine, hook_name)
+        subprocess_check_call.assert_has_calls([
             mock.call(
-                ((os.path.join(self.engine_mock._repo.git_dir, 'hooks', hook_name)),),
+                ((os.path.join(engine._repo.git_dir, 'hooks', hook_name)),),
             ),
         ])
 
-    def test_no_such_hook(self):
-        self.args.no_verify = False
+    def test_no_such_hook(self, args, engine, subprocess_check_call, id_generator):
+        args.no_verify = False
         hook_name = id_generator()
-        self.subprocess_mock.side_effect = OSError
+        subprocess_check_call.side_effect = OSError
 
-        self.assertTrue(do_hook(self.args, self.engine_mock, hook_name))
+        assert do_hook(args, engine, hook_name)
 
-    def test_with_failed_hook(self):
-        self.args.no_verify = False
+    def test_with_failed_hook(self, args, engine, subprocess_check_call, id_generator):
+        args.no_verify = False
         hook_name = id_generator()
-        self.subprocess_mock.side_effect = CalledProcessError(None, None, None)
+        subprocess_check_call.side_effect = CalledProcessError(None, None, None)
 
-        self.assertFalse(do_hook(self.args, self.engine_mock, hook_name))
+        assert not do_hook(args, engine, hook_name)
 
 
-class InitCallTestCase(CoreTestCase):
+class InitCallTestCase(object):
 
-    def test_correct_setup_defaults(self):
+    def test_correct_setup_defaults(self, args, engine):
         inputs = ["REPO_NAME", "", "", "", "", "", "", ""]
         input_gen = itertools.islice(inputs, None)
 
@@ -100,9 +142,14 @@ class InitCallTestCase(CoreTestCase):
 
         output_func = lambda x: None
 
-        handle_init_call(self.args, self.engine_mock, input_func=input_func, output_func=output_func)
+        handle_init_call(
+            args,
+            engine,
+            input_func=input_func,
+            output_func=output_func,
+        )
 
-        self.engine_mock.assert_has_calls([
+        engine.assert_has_calls([
             mock.call.setup_repository_structure(
                 "REPO_NAME",
                 "origin",
@@ -115,7 +162,7 @@ class InitCallTestCase(CoreTestCase):
             ),
         ])
 
-    def test_correct_setup(self):
+    def test_correct_setup(self, id_generator, engine, args):
         inputs = [id_generator() for x in range(8)]
         input_gen = itertools.islice(inputs, None)
 
@@ -124,346 +171,363 @@ class InitCallTestCase(CoreTestCase):
 
         output_func = lambda x: None
 
-        handle_init_call(self.args, self.engine_mock, input_func, output_func)
+        handle_init_call(args, engine, input_func, output_func)
 
-        self.engine_mock.assert_has_calls([
+        engine.assert_has_calls([
             mock.call.setup_repository_structure(*inputs)
         ])
 
 
-class FeatureCallTestCase(CoreTestCase):
-    def test_start(self):
-        self.args.action = "start"
-        self.args.issue_num = None
-        self.args.name = id_generator(chars=string.ascii_letters)
-        self.args.track = False
+class FeatureCallTestCase(object):
+    def test_start(self, id_generator, args, engine):
+        args.action = "start"
+        args.issue_num = None
+        args.name = id_generator(chars=string.ascii_letters)
+        args.track = False
 
         with mock.patch('flowhub.core.do_hook') as patch:
             patch.return_value = True
-            handle_feature_call(self.args, self.engine_mock)
+            handle_feature_call(args, engine)
 
             patch.assert_has_calls([
-                mock.call(self.args, self.engine_mock, "post-feature-start")
+                mock.call(args, engine, "post-feature-start")
             ])
 
-            self.engine_mock.assert_has_calls([
+            engine.assert_has_calls([
                 mock.call.create_feature(
-                    name=self.args.name,
-                    with_tracking=self.args.track,
+                    name=args.name,
+                    with_tracking=args.track,
                 ),
             ])
 
-    def test_start_with_issue_number(self):
-        self.args.action = "start"
-        self.args.name = id_generator(chars=string.ascii_letters)
-        self.args.issue_num = id_generator(chars=string.digits)
-        expected_name = "{}-{}".format(self.args.issue_number, self.args.name)
-        self.args.track = False
+    def test_start_with_issue_number(self, id_generator, args, engine):
+        args.action = "start"
+        args.name = id_generator(chars=string.ascii_letters)
+        args.issue_num = id_generator(chars=string.digits)
+        expected_name = "{}-{}".format(args.issue_number, args.name)
+        args.track = False
 
-        handle_feature_call(self.args, self.engine_mock)
+        handle_feature_call(args, engine)
 
-        self.engine_mock.assert_has_calls([
+        engine.assert_has_calls([
             mock.call.create_feature(
                 name=expected_name,
-                with_tracking=self.args.track,
+                with_tracking=args.track,
             ),
         ])
 
-    def test_work(self):
-        self.args.action = "work"
-        self.args.issue = None
-        self.args.identifier = id_generator()
-        handle_feature_call(self.args, self.engine_mock)
+    def test_work(self, id_generator, args, engine):
+        args.action = "work"
+        args.issue = None
+        args.identifier = id_generator()
+        handle_feature_call(args, engine)
 
-        self.engine_mock.assert_has_calls([
-            mock.call.work_feature(name=self.args.identifier),
+        engine.assert_has_calls([
+            mock.call.work_feature(name=args.identifier),
         ])
 
-    def test_work_with_issue_num(self):
-        self.args.action = "work"
-        self.args.issue = True
-        self.args.identifier = id_generator()
-        handle_feature_call(self.args, self.engine_mock)
+    def test_work_with_issue_num(self, id_generator, args, engine):
+        args.action = "work"
+        args.issue = True
+        args.identifier = id_generator()
+        handle_feature_call(args, engine)
 
-        self.engine_mock.assert_has_calls([
-            mock.call.work_feature(issue=self.args.identifier),
+        engine.assert_has_calls([
+            mock.call.work_feature(issue=args.identifier),
         ])
 
-    def test_publish(self):
-        self.args.action = "publish"
-        self.args.name = id_generator()
+    def test_publish(self, id_generator, args, engine):
+        args.action = "publish"
+        args.name = id_generator()
         with mock.patch('flowhub.core.do_hook') as patch:
             patch.return_value = True
 
-            handle_feature_call(self.args, self.engine_mock)
+            handle_feature_call(args, engine)
 
             patch.assert_has_calls([
-                mock.call(self.args, self.engine_mock, "pre-feature-publish")
+                mock.call(args, engine, "pre-feature-publish")
             ])
 
-            self.engine_mock.assert_has_calls([
-                mock.call.publish_feature(name=self.args.name),
+            engine.assert_has_calls([
+                mock.call.publish_feature(name=args.name),
             ])
 
-    def test_publish_failed_hook(self):
-        self.args.action = "publish"
+    def test_publish_failed_hook(self, args, engine):
+        args.action = "publish"
         with mock.patch('flowhub.core.do_hook') as patch:
             patch.return_value = False
-            handle_feature_call(self.args, self.engine_mock)
+            handle_feature_call(args, engine)
 
-            self.assertEqual(self.engine_mock.call_count, 0)
+            assert engine.call_count == 0
 
-    def test_abandon(self):
-        self.args.action = "abandon"
-        self.args.name = id_generator()
-        handle_feature_call(self.args, self.engine_mock)
-        self.engine_mock.assert_has_calls([
-            mock.call.abandon_feature(name=self.args.name),
+    def test_abandon(self, id_generator, args, engine):
+        args.action = "abandon"
+        args.name = id_generator()
+        handle_feature_call(args, engine)
+        engine.assert_has_calls([
+            mock.call.abandon_feature(name=args.name),
         ])
 
-    def test_accepted(self):
-        self.args.action = 'accepted'
-        self.args.name = id_generator()
-        self.args.no_delete = False
+    def test_accepted(self, id_generator, args, engine):
+        args.action = 'accepted'
+        args.name = id_generator()
+        args.no_delete = False
 
-        handle_feature_call(self.args, self.engine_mock)
+        handle_feature_call(args, engine)
 
-        self.engine_mock.assert_has_calls([
+        engine.assert_has_calls([
             mock.call.accept_feature(
-                name=self.args.name,
+                name=args.name,
                 delete_feature_branch=True,
             ),
         ])
 
-    def test_accepted_no_delete(self):
-        self.args.action = 'accepted'
-        self.args.name = id_generator()
-        self.args.no_delete = True
+    def test_accepted_no_delete(self, id_generator, args, engine):
+        args.action = 'accepted'
+        args.name = id_generator()
+        args.no_delete = True
 
-        handle_feature_call(self.args, self.engine_mock)
+        handle_feature_call(args, engine)
 
-        self.engine_mock.assert_has_calls([
+        engine.assert_has_calls([
             mock.call.accept_feature(
-                name=self.args.name,
+                name=args.name,
                 delete_feature_branch=False,
             ),
         ])
 
-    def test_list(self):
-        self.args.action = "list"
-        handle_feature_call(self.args, self.engine_mock)
+    def test_list(self, args, engine):
+        args.action = "list"
+        handle_feature_call(args, engine)
 
-        self.engine_mock.assert_has_calls([
+        engine.assert_has_calls([
             mock.call.list_features(),
         ])
 
-    def test_undefined_action(self):
-        self.args.action = id_generator()
-        with self.assertRaises(RuntimeError):
-            handle_feature_call(self.args, self.engine_mock)
+    def test_undefined_action(self, id_generator, args, engine):
+        args.action = id_generator()
+        with pytest.raises(RuntimeError):
+            handle_feature_call(args, engine)
 
 
-class ReleaseCallTestCase(CoreTestCase):
-    def test_start(self):
-        self.args.action = "start"
-        self.args.name = id_generator()
+class ReleaseCallTestCase(object):
 
-        with mock.patch('flowhub.core.do_hook') as patch:
-            handle_release_call(self.args, self.engine_mock)
-
-            patch.assert_has_calls([
-                mock.call(self.args, self.engine_mock, "post-release-start", self.args.name),
-            ])
-
-            self.engine_mock.assert_has_calls([
-                mock.call.start_release(name=self.args.name),
-            ])
-
-    def test_publish_with_name(self):
-        self.args.action = "publish"
-        self.args.no_cleanup = False
-        self.args.name = id_generator()
+    def test_start(self, id_generator, args, engine):
+        args.action = "start"
+        args.name = id_generator()
 
         with mock.patch('flowhub.core.do_hook') as patch:
-            handle_release_call(self.args, self.engine_mock)
+            handle_release_call(args, engine)
 
             patch.assert_has_calls([
-                mock.call(self.args, self.engine_mock, "pre-release-publish"),
+                mock.call(args, engine, "post-release-start", args.name),
+            ])
+
+            engine.assert_has_calls([
+                mock.call.start_release(name=args.name),
+            ])
+
+    def test_publish_with_name(self, id_generator, args, engine, create_tag_info_mock):
+        args.action = "publish"
+        args.no_cleanup = False
+        args.name = id_generator()
+
+        with mock.patch('flowhub.core.do_hook') as patch:
+            def input_func(query_str):
+                return ""
+
+            handle_release_call(args, engine, input_func=input_func)
+
+            patch.assert_has_calls([
+                mock.call(args, engine, "pre-release-publish"),
                 mock.call().__nonzero__(),  # the if check
-                mock.call(self.args, self.engine_mock, "post-release-publish", mock.ANY),
+                mock.call(args, engine, "post-release-publish", mock.ANY),
             ])
 
-            self.engine_mock.assert_has_calls([
+            engine.assert_has_calls([
                 mock.call.publish_release(
-                    name=self.args.name,
-                    with_delete=not self.args.no_cleanup,
-                    tag_info=TagInfo(
-                        self.engine_mock.release.name.replace().strip(),
-                        "",
-                    )
+                    name=args.name,
+                    with_delete=not args.no_cleanup,
+                    tag_info=create_tag_info_mock.return_value,
                 ),
             ])
 
-    def test_publish_failed_hook(self):
-        self.args.action = "publish"
-        self.args.name = id_generator()
+            create_tag_info_mock.assert_called_once_with(
+                args,
+                engine.release.name.replace.return_value,
+                input_func
+            )
+
+    def test_publish_failed_hook(self, id_generator, args, engine):
+        args.action = "publish"
+        args.name = id_generator()
 
         with mock.patch('flowhub.core.do_hook') as patch:
             patch.return_value = False
 
-            handle_release_call(self.args, self.engine_mock)
+            handle_release_call(args, engine)
 
             patch.assert_has_calls([
-                mock.call(self.args, self.engine_mock, "pre-release-publish"),
+                mock.call(args, engine, "pre-release-publish"),
             ])
 
-            self.assertEqual(self.engine_mock.call_count, 0)
+            assert engine.call_count == 0
 
-    def test_contribute(self):
-        self.args.action = "contribute"
+    def test_contribute(self, args, engine):
+        args.action = "contribute"
 
-        handle_release_call(self.args, self.engine_mock)
+        handle_release_call(args, engine)
 
-        self.engine_mock.assert_has_calls([
+        engine.assert_has_calls([
             mock.call.contribute_release(),
         ])
 
 
-class HotfixCallTestCase(CoreTestCase):
-    def test_start(self):
-        self.args.action = "start"
-        self.args.name = id_generator()
-        self.args.issue_numbers = []
+class HotfixCallTestCase(object):
+    def test_start(self, id_generator, args, engine):
+        args.action = "start"
+        args.name = id_generator()
+        args.issue_numbers = []
 
         with mock.patch('flowhub.core.do_hook') as patch:
             patch.return_value = True
 
-            handle_hotfix_call(self.args, self.engine_mock)
+            handle_hotfix_call(args, engine)
 
             patch.assert_has_calls([
                 mock.call(
-                    self.args,
-                    self.engine_mock,
+                    args,
+                    engine,
                     "post-hotfix-start",
-                    self.args.name,
+                    args.name,
                 ),
             ])
 
-            self.engine_mock.assert_has_calls([
+            engine.assert_has_calls([
                 mock.call.start_hotfix(
-                    name=self.args.name,
-                    issues=self.args.issue_numbers
+                    name=args.name,
+                    issues=args.issue_numbers
                 )
             ])
 
-    def test_publish_with_name(self):
-        self.args.action = "publish"
-        self.args.name = id_generator()
-        self.args.issue_numbers = []
+    def test_publish_with_name(self, id_generator, args, engine, create_tag_info_mock):
+        args.action = "publish"
+        args.name = id_generator()
+        args.issue_numbers = []
         with mock.patch('flowhub.core.do_hook') as patch:
             patch.return_value = True
 
-            handle_hotfix_call(self.args, self.engine_mock)
+            def input_func(query_str):
+                return ""
+
+            handle_hotfix_call(
+                args,
+                engine,
+                input_func=input_func
+            )
 
             patch.assert_has_calls([
-                mock.call(self.args, self.engine_mock, 'pre-hotfix-publish'),
-                mock.call(self.args, self.engine_mock, 'post-hotfix-publish', mock.ANY),
+                mock.call(args, engine, 'pre-hotfix-publish'),
+                mock.call(args, engine, 'post-hotfix-publish', mock.ANY),
 
             ])
 
-            self.engine_mock.assert_has_calls([
+            engine.assert_has_calls([
                 mock.call.publish_hotfix(
-                    name=self.args.name,
-                    tag_info=TagInfo(
-                        self.engine_mock.hotfix.name.replace().strip(),
-                        "",
-                    )
+                    name=args.name,
+                    tag_info=create_tag_info_mock.return_value,
                 ),
             ])
 
-    def test_contribute(self):
-        self.args.action = "contribute"
+            create_tag_info_mock.assert_called_once_with(
+                args,
+                engine.hotfix.name.replace.return_value,
+                input_func,
+            )
 
-        handle_hotfix_call(self.args, self.engine_mock)
+    def test_contribute(self, args, engine):
+        args.action = "contribute"
 
-        self.engine_mock.assert_has_calls([
+        handle_hotfix_call(args, engine)
+
+        engine.assert_has_calls([
             mock.call.contribute_hotfix(),
         ])
 
 
-class CleanupCallTestCase(CoreTestCase):
+class CleanupCallTestCase(object):
     OPTIONS = ['t', 'u', 'r']
 
-    def test_option_combinations(self):
+    def test_option_combinations(self, args, engine):
 
         for l in range(1, len(self.OPTIONS)+1):
 
             for combo in itertools.combinations(self.OPTIONS, l):
                 # reset the chosen options
                 for o in self.OPTIONS:
-                    setattr(self.args, o, False)
-                self.args.all = False
+                    setattr(args, o, False)
+                args.all = False
 
                 print combo
                 for choice in combo:
-                    setattr(self.args, choice, True)
+                    setattr(args, choice, True)
 
-                handle_cleanup_call(self.args, self.engine_mock)
+                handle_cleanup_call(args, engine)
 
-                self.engine_mock.assert_has_calls([
+                engine.assert_has_calls([
                     mock.call.cleanup_branches(targets=''.join(combo))
                 ])
-                self.engine_patch.stop()
-                self.engine_patch.start()
 
-    def test_all(self):
+    def test_all(self, args, engine):
         for o in self.OPTIONS:
-            setattr(self.args, o, False)
-        self.args.all = True
+            setattr(args, o, False)
+        args.all = True
 
-        handle_cleanup_call(self.args, self.engine_mock)
+        handle_cleanup_call(args, engine)
 
-        self.engine_mock.assert_has_calls([
+        engine.assert_has_calls([
             mock.call.cleanup_branches(targets='tur')
         ])
 
-    def test_no_targets(self):
+    def test_no_targets(self, args, engine):
         for o in self.OPTIONS:
-            setattr(self.args, o, False)
-        self.args.all = False
+            setattr(args, o, False)
+        args.all = False
 
-        handle_cleanup_call(self.args, self.engine_mock)
+        handle_cleanup_call(args, engine)
 
-        self.assertEqual(self.engine_mock.call_count, 0)
+        assert engine.call_count == 0
 
 
-class IssueCallTestCase(CoreTestCase):
-    def test_start(self):
-        self.args.action = "start"
-        self.args.labels = False
-        self.args.create_branch = bool(random.choice([0, 1]))
+class IssueCallTestCase(object):
+    @pytest.mark.parametrize("create_branch", (True, False))
+    def test_start(self, create_branch, args, engine):
+        args.action = "start"
+        args.labels = False
+        args.create_branch = create_branch
 
-        handle_issue_call(self.args, self.engine_mock)
+        handle_issue_call(args, engine)
 
-        self.engine_mock.assert_has_calls([
+        engine.assert_has_calls([
             mock.call.open_issue(
-                title=self.args.title,
+                title=args.title,
                 labels=None,
-                create_branch=self.args.create_branch,
+                create_branch=args.create_branch,
             )
         ])
 
-    def test_start_with_labels(self):
-        self.args.action = "start"
-        self.args.labels = ",".join((id_generator() for x in range(5)))
-        self.args.create_branch = bool(random.choice([0, 1]))
+    @pytest.mark.parametrize("create_branch", (True, False))
+    def test_start_with_labels(self, create_branch, id_generator, args, engine):
+        args.action = "start"
+        args.labels = ",".join((id_generator() for x in range(5)))
+        args.create_branch = create_branch
 
-        handle_issue_call(self.args, self.engine_mock)
+        handle_issue_call(args, engine)
 
-        self.engine_mock.assert_has_calls([
+        engine.assert_has_calls([
             mock.call.open_issue(
-                title=self.args.title,
-                labels=self.args.labels.split(','),
-                create_branch=self.args.create_branch,
+                title=args.title,
+                labels=args.labels.split(','),
+                create_branch=args.create_branch,
             )
         ])

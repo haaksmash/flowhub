@@ -19,23 +19,29 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-import getpass
+import pytest
 import os
-
-try:
-    from local_creds import USERNAME, PASSWORD
-except ImportError:
-    # get USERNAME and PASSWORD, if not defined:
-    USERNAME = getpass.getuser()
-    PASSWORD = getpass.getpass()
-
-TEST_DIR = os.getcwd()
-REPO_NAME = "the_repo"
-TEST_REPO = os.path.join(TEST_DIR, REPO_NAME)
-
-import string
 import random
+import string
 
+@pytest.fixture
+def TEST_DIR():
+    return os.getcwd()
 
-def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
-    return ''.join(random.choice(chars) for x in range(size))
+@pytest.fixture
+def REPO_NAME():
+    return "the_repo"
+
+@pytest.fixture
+def TEST_REPO(TEST_DIR, REPO_NAME):
+    return os.path.join(TEST_DIR, REPO_NAME)
+
+@pytest.fixture
+def id_generator():
+    def generator(size=6, chars=string.ascii_uppercase + string.digits):
+        return ''.join(random.choice(chars) for x in range(size))
+    return generator
+
+def username_and_password(id_generator):
+    return id_generator(), id_generator()
+
