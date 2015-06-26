@@ -20,7 +20,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 import getpass
-import re
 import subprocess
 import tempfile
 import warnings
@@ -30,7 +29,6 @@ from github import Github, GithubException
 
 from configurator import Configurator, ImproperlyConfigured
 from decorators import online_only
-from managers import TagInfo
 from managers.feature import FeatureManager
 from managers.hotfix import HotfixManager
 from managers.pull_request import PullRequestManager
@@ -40,14 +38,17 @@ from managers.release import ReleaseManager
 class NoSuchObject(Exception):
     pass
 
+
 class NoSuchBranch(NoSuchObject):
     pass
+
+
 class NoSuchRemote(NoSuchObject):
     pass
 
 
 class Engine(object):
-    def __init__(self, debug=0, init=False, offline=False):
+    def __init__(self, debug=0, init=False, offline=False, input_func=raw_input):
         self.DEBUG = debug
         if self.DEBUG > 2:
             print "initing engine"
@@ -63,7 +64,7 @@ class Engine(object):
         if not self.offline:
             if self.DEBUG > 0:
                 print "Authorizing engine..."
-            if not self.do_auth():
+            if not self.do_auth(input_func):
                 print "Authorization failed! Exiting."
                 return
 
@@ -145,7 +146,7 @@ class Engine(object):
                 offline=self.offline,
             )
 
-    def do_auth(self):
+    def do_auth(self, input_func):
         """Generates the authorization to do things with github."""
         try:
             token = self._cr.flowhub.auth.token
@@ -158,17 +159,17 @@ class Engine(object):
                 "Entering your credentials now will grant Flowhub the access it "
                 "requires."
             )
-            if not self._create_token():
+            if not self._create_token(input_func):
                 return False
             # Refresh the readers
             self._cr = Configurator(self._repo.config_reader())
 
         return True
 
-    def _create_token(self):
+    def _create_token(self, input_func):
         # Don't store the users' information.
         for i in range(3):
-            self._gh = Github(raw_input("Username: "), getpass.getpass())
+            self._gh = Github(input_func("Username: "), getpass.getpass())
 
             try:
                 auth = self._gh.get_user().create_authorization(
