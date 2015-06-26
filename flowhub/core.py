@@ -55,8 +55,8 @@ def do_hook(args, engine, hook_name, *hook_args):
         return False
 
 
-def create_tag_info(args, default_label=""):
-    label = raw_input("Tag Label [{}]: ".format(default_label)) or default_label
+def create_tag_info(args, input_func, default_label=""):
+    label = input_func("Tag Label [{}]: ".format(default_label)) or default_label
 
     # Open the $EDITOR, if you can...
     descr_f = tempfile.NamedTemporaryFile(delete=False)
@@ -75,7 +75,7 @@ def create_tag_info(args, default_label=""):
         )
     except OSError:
         if args.verbosity > 2:
-            print "Hmm...are you on Windows?"
+            future_proof_print("Hmm...are you on Windows?")
         editor_result = 126
 
     if args.verbosity > 3:
@@ -84,16 +84,16 @@ def create_tag_info(args, default_label=""):
     if editor_result == 0:
         # Re-open the file to get new contents...
         fnew = open(descr_f.name, 'r')
-        # and remove the first line
         body = fnew.readlines()
+        # and remove the first line if it's our instruction
         if body[-1].startswith('# Write the tag description'):
             body = body[:-1]
 
-        body = "".join(body)
+        body = " ".join(body)
 
         fnew.close()
     else:
-        body = raw_input(
+        body = input_func(
             "Tag message:\n"
         )
 
@@ -114,21 +114,7 @@ def handle_init_call(args, engine, input_func=raw_input, output_func=future_proo
     )
 
     origin = input_func("Name of your github remote [origin]: ") or 'origin'
-    # if not engine._remote_exists(origin):
-    #     print "Whoops! That remote doesn't exist."
-    #     remote_url = input_func("Remote url: ")
-    #     engine._repo.create_remote(
-    #         origin,
-    #         remote_url,
-    #     )
     canon = input_func('Name of the organization remote [canon]: ') or 'canon'
-    # if not engine._remote_exists(canon):
-    #     print "Whoops! That remote doesn't exist."
-    #     remote_url = input_func("Remote url: ")
-    #     self._repo.create_remote(
-    #         canon,
-    #         remote_url,
-    #     )
 
     master = input_func("Name of the stable branch [master]: ") or 'master'
     if not engine._branch_exists(master):
@@ -196,7 +182,7 @@ def handle_feature_call(args, engine):
         raise RuntimeError("Unimplemented command for features: {}".format(args.action))
 
 
-def handle_hotfix_call(args, engine):
+def handle_hotfix_call(args, engine, input_func=raw_input):
     if args.verbosity > 2:
         print "handling hotfix"
 
@@ -218,7 +204,7 @@ def handle_hotfix_call(args, engine):
         )
         results = engine.publish_hotfix(
             name=args.name,
-            tag_info=create_tag_info(args, default_tag),
+            tag_info=create_tag_info(args, default_tag, input_func),
         )
 
         do_hook(args, engine, "post-hotfix-publish", results)
@@ -229,7 +215,7 @@ def handle_hotfix_call(args, engine):
         raise RuntimeError("Unimplemented command for hotfixes: {}".format(args.action))
 
 
-def handle_release_call(args, engine):
+def handle_release_call(args, engine, input_func=raw_input):
     if args.verbosity > 2:
         print "handling release"
 
@@ -251,7 +237,7 @@ def handle_release_call(args, engine):
         )
         results = engine.publish_release(
             name=args.name,
-            tag_info=create_tag_info(args, default_tag),
+            tag_info=create_tag_info(args, default_tag, input_func),
             with_delete=(not args.no_cleanup),
         )
         do_hook(args, engine, "post-release-publish", results)
