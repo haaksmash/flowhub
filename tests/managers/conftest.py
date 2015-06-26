@@ -18,27 +18,25 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
-
-import unittest
 import mock
+import pytest
 
 
-class ManagerTestCase(unittest.TestCase):
-    MANAGER_CLASS = None
-    PREFIX = None
-
-    def setUp(self):
-
-        self.manager = self.MANAGER_CLASS(
-            debug=False,
-            prefix=self.PREFIX,
-            origin=mock.MagicMock(),
-            canon=mock.MagicMock(),
-            master=mock.MagicMock(),
-            develop=mock.MagicMock(),
-            release=mock.MagicMock(),
-            hotfix=mock.MagicMock(),
-            repo=mock.MagicMock(),
-            gh=mock.MagicMock(),
-            offline=self.OFFLINE
-        )
+@pytest.fixture
+def manager(request):
+    manager_class = request.cls.MANAGER_CLASS
+    prefix = getattr(request.cls, 'PREFIX', None)
+    offline = getattr(request.cls, 'OFFLINE', False)
+    return manager_class(
+        debug=False,
+        prefix=prefix,
+        origin=mock.MagicMock(),
+        canon=mock.MagicMock(),
+        master=mock.MagicMock(),
+        develop=mock.MagicMock(),
+        release=mock.MagicMock(),
+        hotfix=mock.MagicMock(),
+        repo=mock.MagicMock(),
+        gh=mock.MagicMock(),
+        offline=offline,
+    )

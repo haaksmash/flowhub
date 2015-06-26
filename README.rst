@@ -1,6 +1,9 @@
 flowhub
 =======
 
+.. image:: https://travis-ci.org/haaksmash/flowhub.svg?branch=master
+    :target: https://travis-ci.org/haaksmash/flowhub
+
 Flowhub translates the workflow implemented by the excellent
 `git-flow <http://www.github.com/nvie/gitflow>`_ Git add-on to GitHub.
 
