@@ -18,49 +18,47 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
+import mock
 
 from flowhub.managers.feature import FeatureManager
 
-from tests.managers import ManagerTestCase
 
-
-class OfflineFMTestCase(ManagerTestCase):
+class OfflineFMTestCase(object):
     MANAGER_CLASS = FeatureManager
     OFFLINE = True
 
-    def test_start(self):
+    def test_start(self, manager):
         pass
 
-    def test_get(self):
+    def test_get(self, manager):
 
         pass
 
-    def test_fuzzy_get(self):
+    def test_fuzzy_get(self, manager):
         pass
 
-    def test_accept(self):
+    def test_accept(self, manager):
         pass
 
-    def test_publish(self):
+    def test_publish(self, manager):
         pass
 
 
-class OnlineFMTestCase(ManagerTestCase):
+class OnlineFMTestCase(object):
     MANAGER_CLASS = FeatureManager
     OFFLINE = False
 
-    def test_start(self):
+    def test_start(self, manager):
         pass
 
-    def test_get(self):
-
+    def test_get(self, manager):
         pass
 
-    def test_fuzzy_get(self):
+    def test_fuzzy_get(self, manager):
         pass
 
-    def test_accept(self):
+    def test_accept(self, manager):
         pass
 
-    def test_publish(self):
+    def test_publish(self, manager):
         pass
