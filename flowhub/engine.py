@@ -81,9 +81,7 @@ class Engine(object):
 
             if self._gh.rate_limiting[0] < 100:
                 warnings.warn(
-                    "You are close to exceeding your GitHub access rate; {} left out of {}".format(
-                        *self._gh.rate_limiting
-                    )
+                    "You are close to exceeding your GitHub access rate!",
                 )
         else:
             if self.DEBUG > 0:
