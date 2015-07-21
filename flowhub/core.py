@@ -204,7 +204,7 @@ def handle_hotfix_call(args, engine, input_func=raw_input):
         )
         results = engine.publish_hotfix(
             name=args.name,
-            tag_info=create_tag_info(args, default_tag, input_func),
+            tag_info=create_tag_info(args, input_func, default_tag),
         )
 
         do_hook(args, engine, "post-hotfix-publish", results)
@@ -237,7 +237,7 @@ def handle_release_call(args, engine, input_func=raw_input):
         )
         results = engine.publish_release(
             name=args.name,
-            tag_info=create_tag_info(args, default_tag, input_func),
+            tag_info=create_tag_info(args, input_func, default_tag),
             with_delete=(not args.no_cleanup),
         )
         do_hook(args, engine, "post-release-publish", results)
