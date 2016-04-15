@@ -354,8 +354,8 @@ class ReleaseCallTestCase(object):
 
             create_tag_info_mock.assert_called_once_with(
                 args,
+                input_func,
                 engine.release.name.replace.return_value,
-                input_func
             )
 
     def test_publish_failed_hook(self, id_generator, args, engine):
@@ -441,8 +441,8 @@ class HotfixCallTestCase(object):
 
             create_tag_info_mock.assert_called_once_with(
                 args,
-                engine.hotfix.name.replace.return_value,
                 input_func,
+                engine.hotfix.name.replace.return_value,
             )
 
     def test_contribute(self, args, engine):

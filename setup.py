@@ -34,7 +34,7 @@ def get_readme():
 
 setup(
     name="flowhub",
-    version='0.6.1',
+    version='0.6.2',
     description="Git-flow adapted for GitHub",
     long_description=get_readme(),
     author="Haak Saxberg",
