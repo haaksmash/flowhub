@@ -19,6 +19,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 from collections import namedtuple
+import subprocess
+import tempfile
 import textwrap
 
 import git
@@ -46,20 +48,29 @@ class SummaryLine(namedtuple('SummaryLineParent', ['msg', 'type'])):
 
 
 class Engine(Base):
-    def __init__(self, offline, verbosity, output, repo_directory):
+    def __init__(self, offline, verbosity, repo_directory, cli):
         self._offline = offline
         self._verbosity = verbosity
-        self._output = output
+        self._cli = cli
 
         self._summary = []
         self._repo = git.Repo(repo_directory)
         self._config = Configurator(self._repo)
-        self._connector_factory = ConnectorFactory(self._config)
+        self._connector_factory = ConnectorFactory(self._config, self)
 
         if not self.is_authorized():
             raise NeedsAuthorization
 
-    def get_authorization(self, output_func, input_func):
+    def request_output(self, msg):
+        self._cli.emit_message(msg)
+
+    def request_input(self, msg):
+        return self._cli.ingest_message(msg)
+
+    def add_to_summary_items(self, msg, type='good'):
+        self._summary += [SummaryLine(msg, type)]
+
+    def get_authorization(self):
         # normally we'd use self.connector, but we're likely to seek
         # authorization from the 'offline' version of the engine --- so we
         # regretfully violate the law of demeter here to go after the connector
@@ -67,9 +78,7 @@ class Engine(Base):
         with self._config.reader() as reader:
             connector_type = reader.flowhub.structure.connectorType
 
-        self._connector_factory.connector_for(connector_type).get_authorization(
-            output_func, input_func
-        )
+        self._connector_factory.connector_for(connector_type).get_authorization()
 
     def is_authorized(self):
         return self.connector.is_authorized()
@@ -157,7 +166,7 @@ class Engine(Base):
 
     def fetch_remote(self, remote_name):
         self._find_remote(remote_name).fetch()
-        self._summary += [SummaryLine('Fetched latest changes from {}'.format(remote_name), 'good')]
+        self.add_to_summary_items('Fetched latest changes from {}'.format(remote_name))
 
     def _find_branch(self, name):
         return getattr(self._repo.heads, name, None)
@@ -177,10 +186,10 @@ class Engine(Base):
             self.print_at_verbosity({3: 'creating branch {} off of {}'.format(name, parent)})
             if parent is None:
                 branch = self._repo.create_head(name)
-                self._summary += [SummaryLine('Created branch {}'.format(name), 'good')]
+                self.add_to_summary_items('Created branch {}'.format(name))
             else:
                 branch = self._repo.create_head(name, parent)
-                self._summary += [SummaryLine('Created branch {} off of {}'.format(name, parent.name), 'good')]
+                self.add_to_summary_items('Created branch {} off of {}'.format(name, parent.name))
 
             return branch
         else:
@@ -217,9 +226,6 @@ class Engine(Base):
         with self._config.reader() as reader:
             return self._find_remote(reader.flowhub.structure.canon)
 
-    def create_pull_request(self):
-        pass
-
     def start_feature(
         self,
         name,
@@ -246,7 +252,7 @@ class Engine(Base):
         branch = self._find_branch(identifier)
 
         branch.checkout()
-        self._summary += [SummaryLine('Checked out branch {}'.format(identifier), 'good')]
+        self.add_to_summary_items('Checked out branch {}'.format(identifier))
 
     def push_to_remote(self, name, remote_name, set_upstream):
         self.print_at_verbosity({2: 'sending changes on {} to {}'.format(name, remote_name)})
@@ -261,30 +267,30 @@ class Engine(Base):
         self._repo.git.push(
             remote,
             name,
-            set_upstream=set_upstream
+            set_upstream=set_upstream,
         )
 
         if not existed_already:
-            self._summary += [
-                SummaryLine("Created a remote {}branch on {} for {}".format(
+            self.add_to_summary_items(
+                "Created a remote {}branch on {} for {}".format(
                     'tracking' if set_upstream else '',
                     remote_name,
                     name,
-                ), 'good'),
-            ]
+                ),
+            )
         elif set_upstream:
-            self._summary += [
-                SummaryLine('Set {} to track {} on {}'.format(
+            self.add_to_summary_items(
+                'Set {} to track {} on {}'.format(
                     name,
                     name,
                     remote_name,
-                ), 'good'),
-            ]
+                ),
+            )
 
         if had_new_commits and existed_already:
-            self._summary += [
-                SummaryLine("Pushed new commits to {}".format(remote_name), 'good'),
-            ]
+            self.add_to_summary_items(
+                "Pushed new commits to {}".format(remote_name),
+            )
 
     def accept_feature(self):
         pass
@@ -314,41 +320,88 @@ class Engine(Base):
 
             if request_results.success:
                 if request_results.new:
-                    self._summary += [
-                        SummaryLine(
-                            textwrap.dedent("""
-                                New pull request created: {} into {}
-                                \turl: {}
-                            """.format(
+                    self.add_to_summary_items(
+                        textwrap.dedent("""
+                            New pull request created: {} into {}
+                            \turl: {}""".format(
                                 name,
                                 self.develop.name,
                                 request_results.url,
-                            ))[1:],
-                            'good',
-                        ),
-                    ]
+                            )
+                        )[1:],
+                    )
                 else:
-                    self._summary += [
-                        SummaryLine(
-                            textwrap.dedent("""
-                                New commits added to existing request
-                                \turl: {}
-                            """.format(
+                    self.add_to_summary_items(
+                        textwrap.dedent("""
+                            New commits added to existing request
+                            \turl: {}""".format(
                                 request_results.url,
-                            ))[1:],
-                            'good',
-                        ),
-                    ]
+                            )
+                        )[1:],
+                    )
             else:
-                self._summary += [
-                    SummaryLine(
-                        "Request to {} was unsuccessful.".format(self.connector.service_name()),
-                        'bad',
-                    ),
-                ]
+                self.add_to_summary_items(
+                    "Request to {} was unsuccessful.".format(self.connector.service_name()),
+                )
 
     def abandon_feature(self):
         pass
+
+    def create_issue(self):
+        labels = []
+        title = self.request_input("Title for this issue: ")
+        descriptor_file = tempfile.NamedTemporaryFile(delete=False)
+        descriptor_file.file.write(
+            "\n\n# Write your description above. Remember - you can use Github markdown syntax!"
+        )
+
+        self.print_at_verbosity({3: 'temp file: {}'.format(descriptor_file.name)})
+        descriptor_file.close()
+
+        try:
+            editor_result = subprocess.check_call(
+                "$EDITOR {}".format(descriptor_file.name),
+                shell=True
+            )
+        except OSError:
+            self.print_at_verbosity({2: "Hmm...are you on Windows?"})
+            editor_result = 126
+
+        self.print_at_verbosity({4: 'result of $EDITOR: {}'.format(editor_result)})
+
+        if editor_result == 0:
+            # Re-open the file to get new contents...
+            fnew = open(descriptor_file.name, 'r')
+            # and remove the first line
+            body = fnew.readlines()
+            if body[-1].startswith('# Write your description'):
+                body = body[:-1]
+
+            body = "".join(body)
+
+            fnew.close()
+        else:
+            body = self.request_input(
+                "Description (remember, you can use GitHub markdown):\n"
+            )
+
+        self.print_at_verbosity({4: 'issue description: {}'.format(body)})
+
+        result = self.connector.open_issue(title, body, labels)
+
+        self.add_to_summary_items(
+            textwrap.dedent("""
+                Opened issue #{number}: {title}{labels}
+                \turl: {url}""".format(
+                    number=result.number,
+                    title=title,
+                    labels='\n\t[{}]'.format(' '.join(labels)) if labels else '',
+                    url=result.url,
+                ),
+            ),
+        )
+
+        return result
 
     def get_summary(self):
         # don't let the outside world muck with our summary

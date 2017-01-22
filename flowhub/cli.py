@@ -43,23 +43,26 @@ class CLI(Base):
         self._offline_engine = Engine(
             offline=True,
             verbosity=-1,
-            output=self._output,
             repo_directory='.',
+            cli=self,
         )
+
+    def emit_message(self, msg):
+        self._output(msg)
+
+    def ingest_message(self, msg):
+        return self._input(msg)
 
     def build_engine(self, args):
         try:
             return Engine(
                 offline=args.offline,
                 verbosity=args.verbosity,
-                output=self._output,
                 repo_directory='.',
+                cli=self,
             )
         except NeedsAuthorization:
-            self._offline_engine.get_authorization(
-                self._output,
-                self._input,
-            )
+            self._offline_engine.get_authorization()
             return self.build_engine(args)
         except Abort:
             raise
@@ -247,8 +250,19 @@ class CLI(Base):
             traceback.print_exc()
         else:
             if len(summary) != 0:
-                summary = ['\nSummary of actions:'] + summary
-                self._output("\n - ".join(map(lambda s: "{}".format(s), summary)))
+                summary = ['\n\033[1;37;40mSummary of actions:\033[1;37;40m'] + summary
+                self._output(
+                    "\n - ".join(
+                        map(
+                            lambda s: "{color}{msg}{reset}".format(
+                                color='\033[1;31;40m' if hasattr(s, 'type') and s.type == 'bad' else '\033[0;37;40m',
+                                msg=s,
+                                reset='\033[1;37;40m'
+                            ),
+                            summary
+                        ),
+                    ),
+                )
 
     def handle_init_invocation(self, args):
         self.print_at_verbosity({3: 'handling init'})

@@ -23,14 +23,15 @@ from flowhub.connectors.github_connector import GithubConnector
 from flowhub.connectors.noop_connector import NoopConnector
 
 class ConnectorFactory(object):
-    def __init__(self, config):
+    def __init__(self, config, engine):
         self._config = config
         self._connectors = {
             'github': GithubConnector,
         }
+        self._engine = engine
 
     def known_connectors(self):
         return self._connectors.keys()
 
     def connector_for(self, connector_type):
-        return self._connectors.get(connector_type, NoopConnector)(self._config)
+        return self._connectors.get(connector_type, NoopConnector)(self._config, self._engine)

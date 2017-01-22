@@ -18,11 +18,11 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
-from flowhub.connectors.results import RequestResult
+from flowhub.connectors.results import IssueResult, RequestResult
 
 
 class NoopConnector(object):
-    def __init__(self, config):
+    def __init__(self, config, engine):
         pass
 
     def make_request(self, **kwargs):
@@ -34,5 +34,8 @@ class NoopConnector(object):
     def is_authorized(self):
         return True
 
-    def get_authorization(self, output_func, input_func):
+    def get_authorization(self):
         return None
+
+    def open_issue(self, title, body, labels):
+        return IssueResult(False, None, None)
