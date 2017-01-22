@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# PYTHON_ARGCOMPLETE_OK
 """
 Copyright (C) 2017 Haak Saxberg
 
@@ -20,16 +18,21 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
+from flowhub.connectors.results import RequestResult
 
-from flowhub import cli
-from flowhub.exceptions import Abort
 
-try:
-    cli.run()
-except Abort:
-    pass
-except (KeyboardInterrupt, SystemExit), e:
-    pass
-except Exception, e:
-    import traceback
-    traceback.print_exc()
+class NoopConnector(object):
+    def __init__(self, config):
+        pass
+
+    def make_request(self, **kwargs):
+        return RequestResult(False, None, False)
+
+    def service_name(self):
+        return "NoOp"
+
+    def is_authorized(self):
+        return True
+
+    def get_authorization(self, output_func, input_func):
+        return None

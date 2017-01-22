@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012 Haak Saxberg
+Copyright (C) 2017 Haak Saxberg
 
 This file is part of Flowhub, a command-line tool to enable various
 Git-based workflows that interacts with GitHub.
@@ -18,25 +18,4 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
-import mock
-import pytest
 
-
-@pytest.fixture
-def manager(request):
-    manager_class = request.cls.MANAGER_CLASS
-    prefix = getattr(request.cls, 'PREFIX', None)
-    offline = getattr(request.cls, 'OFFLINE', False)
-    return manager_class(
-        debug=False,
-        prefix=prefix,
-        origin=mock.MagicMock(),
-        canon=mock.MagicMock(),
-        master=mock.MagicMock(),
-        develop=mock.MagicMock(),
-        release=mock.MagicMock(),
-        hotfix=mock.MagicMock(),
-        repo=mock.MagicMock(),
-        gh=mock.MagicMock(),
-        offline=offline,
-    )

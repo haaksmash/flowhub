@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012 Haak Saxberg
+Copyright (C) 2017 Haak Saxberg
 
 This file is part of Flowhub, a command-line tool to enable various
 Git-based workflows that interacts with GitHub.
@@ -19,15 +19,3 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-import functools
-
-
-def online_only(method):
-    def wrapper(self, *args, **kwargs):
-        if self.offline:
-            print "not available offline"
-            return False
-
-        return method(self, *args, **kwargs)
-
-    return wrapper

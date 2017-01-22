@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Copyright (C) 2012 Haak Saxberg
+Copyright (C) 2017 Haak Saxberg
 
 This file is part of Flowhub, a command-line tool to enable various
 Git-based workflows that interacts with GitHub.
@@ -45,8 +45,8 @@ setup(
         os.path.join('bin', 'flowhub')
     ],
     install_requires=[
-        'GitPython == 0.3.6',
-        'PyGithub > 1.25.1',
-        'argcomplete >= 0.8.9',
+        'GitPython == 2.1.1',
+        'PyGithub == 1.29',
+        'argcomplete == 1.8.1',
     ],
 )
