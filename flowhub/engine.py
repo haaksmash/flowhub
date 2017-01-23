@@ -70,15 +70,17 @@ class Engine(Base):
     def add_to_summary_items(self, msg, type='good'):
         self._summary += [SummaryLine(msg, type)]
 
+    @property
+    def connector_type(self):
+        with self._config.reader() as reader:
+            return reader.flowhub.structure.connectorType
+
     def get_authorization(self):
         # normally we'd use self.connector, but we're likely to seek
         # authorization from the 'offline' version of the engine --- so we
         # regretfully violate the law of demeter here to go after the connector
         # we really care about.
-        with self._config.reader() as reader:
-            connector_type = reader.flowhub.structure.connectorType
-
-        self._connector_factory.connector_for(connector_type).get_authorization()
+        self._connector_factory.connector_for(self.connector_type).get_authorization()
 
     def is_authorized(self):
         return self.connector.is_authorized()
@@ -203,10 +205,7 @@ class Engine(Base):
         if self._offline:
             return self._connector_factory.connector_for('noop')
 
-        with self._config.reader() as reader:
-            connector_type = reader.flowhub.structure.connectorType
-
-        return self._connector_factory.connector_for(connector_type)
+        return self._connector_factory.connector_for(self.connector_type)
 
     @property
     def master(self):
@@ -371,6 +370,17 @@ class Engine(Base):
         if should_merge_into_development:
             self.merge_into(branch_name, self.develop.name)
             self.push_to_remote(branch_name, self.canon.name, False)
+            if not self._offline:
+                result = self.connector.close_request(branch_name)
+                if result.success:
+                    self.add_to_summary_items(
+                        "Request on {} closed.".format(self.connector.service_name()),
+                    )
+                else:
+                    self.add_to_summary_items(
+                        "Request on {} could not be closed!".format(self.connector.service_name()),
+                        'bad'
+                    )
 
         if should_delete_branch:
             self.delete_branch(branch_name)
@@ -416,6 +426,7 @@ class Engine(Base):
             else:
                 self.add_to_summary_items(
                     "Request to {} was unsuccessful.".format(self.connector.service_name()),
+                    'bad',
                 )
 
     def abandon_feature(self):

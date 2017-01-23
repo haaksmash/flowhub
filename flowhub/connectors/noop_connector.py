@@ -28,6 +28,9 @@ class NoopConnector(object):
     def make_request(self, **kwargs):
         return RequestResult(False, None, False)
 
+    def close_request(self, branch_name):
+        return RequestResult(True, None, False)
+
     def service_name(self):
         return "NoOp"
 

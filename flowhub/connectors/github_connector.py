@@ -71,6 +71,12 @@ class GithubConnector(object):
 
         return RequestResult(False, 'https://github.com', False)
 
+    def close_request(self, branch_name):
+        if self._close_pull_request(branch_name):
+            return RequestResult(True, 'https://github.com', False)
+
+        return RequestResult(False, 'https://github.com', False)
+
     def open_issue(self, title, body, labels):
         labels = [l for l in self.canon_repo.get_labels() if l.name in labels]
         if body is None:
