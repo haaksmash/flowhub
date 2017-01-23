@@ -370,6 +370,7 @@ class Engine(Base):
 
         if should_merge_into_development:
             self.merge_into(branch_name, self.develop.name)
+            self.push_to_remote(branch_name, self.canon.name, False)
 
         if should_delete_branch:
             self.delete_branch(branch_name)
