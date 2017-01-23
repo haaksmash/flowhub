@@ -211,7 +211,37 @@ class CLI(Base):
         self._setup_parser_completers(completers)
 
     def _build_release_parser(self, parser):
-        pass
+        release_subs = parser.add_subparsers(dest='action')
+
+        rstart = release_subs.add_parser(
+            'start',
+            help="start a new release branch",
+        )
+        rstart.add_argument(
+            'name',
+            help="name (and tag) of the release branch.",
+        )
+
+        release_subs.add_parser(
+            'stage',
+            help="send a release branch to a staging environment",
+        )
+
+        rpublish = release_subs.add_parser(
+            'publish',
+            help="publish a release branch to production and trunk",
+        )
+        rpublish.add_argument(
+            'name',
+            nargs='?',
+            help="name of release to publish. if not specified, current branch is assumed.",
+        )
+        rpublish.add_argument(
+            '--no-cleanup',
+            action='store_true',
+            default=False,
+            help="do not delete the release branch after a successful publish",
+        )
 
     def _build_hotfix_parser(self, parser):
         pass
@@ -324,6 +354,17 @@ class CLI(Base):
         else:
             raise RuntimeError("Unimplemented command for features: {}".format(args.action))
 
+        return engine.get_summary()
+
+    def handle_release_invocation(self, args):
+        self.print_at_verbosity({3: 'handling release'})
+        engine = self.build_engine(args)
+        if args.action == 'start':
+            pass
+        elif args.action == 'stage':
+            pass
+        elif args.action == 'publish':
+            pass
         return engine.get_summary()
 
     def handle_unknown_invocation(self, args):
