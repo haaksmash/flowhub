@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012 Haak Saxberg
+Copyright (C) 2017 Haak Saxberg
 
 This file is part of Flowhub, a command-line tool to enable various
 Git-based workflows that interacts with GitHub.
@@ -18,37 +18,20 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
-from collections import namedtuple
+import textwrap
 
-TagInfo = namedtuple("TagInfo", ["label", "message"])
-
-
-class Manager(object):
-
-    def __init__(
-        self,
-        debug,
-        prefix,
-        origin,
-        canon,
-        master,
-        develop,
-        release,
-        hotfix,
-        repo,
-        gh,
-        offline
-    ):
-        self._prefix = prefix
-        self.DEBUG = debug
-        self.origin = origin
-        self.canon = canon
-        self.master = master
-        self.develop = develop
-        self.release = release
-        self.hotfix = hotfix
-        self.repo = repo
-        self.gh = gh
-        self.offline = offline
+from flowhub.utilities import future_proof_print
 
 
+class Base(object):
+    def print_at_verbosity(self, msgs):
+        verbosity = getattr(self, '_verbosity', 0)
+        possible_msg_keys = filter(lambda k: k <= verbosity, sorted(msgs.keys()))
+        if len(possible_msg_keys) < 1:
+            return None
+
+        msg_key = possible_msg_keys[-1]
+        msg = msgs[msg_key]
+
+        output_func = getattr(self, '_output', future_proof_print)
+        output_func(textwrap.dedent(msg))

@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012 Haak Saxberg
+Copyright (C) 2017 Haak Saxberg
 
 This file is part of Flowhub, a command-line tool to enable various
 Git-based workflows that interacts with GitHub.
@@ -18,47 +18,20 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
-import mock
 
-from flowhub.managers.feature import FeatureManager
+from flowhub.connectors.github_connector import GithubConnector
+from flowhub.connectors.noop_connector import NoopConnector
 
+class ConnectorFactory(object):
+    def __init__(self, config, engine):
+        self._config = config
+        self._connectors = {
+            'github': GithubConnector,
+        }
+        self._engine = engine
 
-class OfflineFMTestCase(object):
-    MANAGER_CLASS = FeatureManager
-    OFFLINE = True
+    def known_connectors(self):
+        return self._connectors.keys()
 
-    def test_start(self, manager):
-        pass
-
-    def test_get(self, manager):
-
-        pass
-
-    def test_fuzzy_get(self, manager):
-        pass
-
-    def test_accept(self, manager):
-        pass
-
-    def test_publish(self, manager):
-        pass
-
-
-class OnlineFMTestCase(object):
-    MANAGER_CLASS = FeatureManager
-    OFFLINE = False
-
-    def test_start(self, manager):
-        pass
-
-    def test_get(self, manager):
-        pass
-
-    def test_fuzzy_get(self, manager):
-        pass
-
-    def test_accept(self, manager):
-        pass
-
-    def test_publish(self, manager):
-        pass
+    def connector_for(self, connector_type):
+        return self._connectors.get(connector_type, NoopConnector)(self._config, self._engine)

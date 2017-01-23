@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# PYTHON_ARGCOMPLETE_OK
 """
 Copyright (C) 2017 Haak Saxberg
 
@@ -21,15 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-from flowhub import cli
-from flowhub.exceptions import Abort
+from collections import namedtuple
 
-try:
-    cli.run()
-except Abort:
-    pass
-except (KeyboardInterrupt, SystemExit), e:
-    pass
-except Exception, e:
-    import traceback
-    traceback.print_exc()
+RequestResult = namedtuple('RequestResult', ['success', 'url', 'new'])
+IssueResult = namedtuple('IssueResult', ['success', 'url', 'number'])

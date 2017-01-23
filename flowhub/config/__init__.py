@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012 Haak Saxberg
+Copyright (C) 2017 Haak Saxberg
 
 This file is part of Flowhub, a command-line tool to enable various
 Git-based workflows that interacts with GitHub.
@@ -18,30 +18,4 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
-
-import pytest
-import os
-import random
-import string
-
-@pytest.fixture
-def TEST_DIR():
-    return os.getcwd()
-
-@pytest.fixture
-def REPO_NAME():
-    return "the_repo"
-
-@pytest.fixture
-def TEST_REPO(TEST_DIR, REPO_NAME):
-    return os.path.join(TEST_DIR, REPO_NAME)
-
-@pytest.fixture
-def id_generator():
-    def generator(size=6, chars=string.ascii_uppercase + string.digits):
-        return ''.join(random.choice(chars) for x in range(size))
-    return generator
-
-def username_and_password(id_generator):
-    return id_generator(), id_generator()
 

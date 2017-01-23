@@ -147,38 +147,6 @@ When her pull-request has been accepted, Suzy can run
 from her feature branch, and Flowhub will clean things up a bit. She can also
 specify a feature name, if she's not currently on the accepted branch.
 
-If Suzy's feature is deemed a non-starter, and summarily rejected, Flowhub is
-there to comfort her:
-
-.. code-block:: bash
-
-    flowhub feature abandon
-
-    Summary of actions:
-     - Deleted feature/abandoned-feature from local repository
-     - Deleted feature/accepted-feature from origin
-     - Checked out branch develop
-
-Which will remove the feature branch she'd been working on.
-
-The difference between ``accepted`` and ``abandon`` is that ``accepted`` will
-complain if the feature branch hasn't been fully merged into your trunk branch;
-``abandon`` doesn't care.
-
-feature list
-++++++++++++
-
-At any time, Suzy can get a list of her current features' names (she's
-been so prolific that she's lost track of them all).
-
-.. code-block:: bash
-
-    flowhub feature list
-      suzy-feature-the-first
-    * suzy-currently-checkedout-feature
-      # ...
-      suzy-feature-the-millionth
-
 release/hotfix contribute
 +++++++++++++++++++++++++
 

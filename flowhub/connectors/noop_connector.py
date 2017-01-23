@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012 Haak Saxberg
+Copyright (C) 2017 Haak Saxberg
 
 This file is part of Flowhub, a command-line tool to enable various
 Git-based workflows that interacts with GitHub.
@@ -18,25 +18,27 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
-import mock
-import pytest
+from flowhub.connectors.results import IssueResult, RequestResult
 
 
-@pytest.fixture
-def manager(request):
-    manager_class = request.cls.MANAGER_CLASS
-    prefix = getattr(request.cls, 'PREFIX', None)
-    offline = getattr(request.cls, 'OFFLINE', False)
-    return manager_class(
-        debug=False,
-        prefix=prefix,
-        origin=mock.MagicMock(),
-        canon=mock.MagicMock(),
-        master=mock.MagicMock(),
-        develop=mock.MagicMock(),
-        release=mock.MagicMock(),
-        hotfix=mock.MagicMock(),
-        repo=mock.MagicMock(),
-        gh=mock.MagicMock(),
-        offline=offline,
-    )
+class NoopConnector(object):
+    def __init__(self, config, engine):
+        pass
+
+    def make_request(self, **kwargs):
+        return RequestResult(False, None, False)
+
+    def close_request(self, branch_name):
+        return RequestResult(True, None, False)
+
+    def service_name(self):
+        return "NoOp"
+
+    def is_authorized(self):
+        return True
+
+    def get_authorization(self):
+        return None
+
+    def open_issue(self, title, body, labels):
+        return IssueResult(False, None, None)
