@@ -165,6 +165,8 @@ class Engine(Base):
             }
 
     def fetch_remote(self, remote_name):
+        if self._offline:
+            return None
         self._find_remote(remote_name).fetch()
         self.add_to_summary_items('Fetched latest changes from {}'.format(remote_name))
 
@@ -255,6 +257,8 @@ class Engine(Base):
         self.add_to_summary_items('Checked out branch {}'.format(identifier))
 
     def push_to_remote(self, name, remote_name, set_upstream):
+        if self._offline:
+            return None
         self.print_at_verbosity({2: 'sending changes on {} to {}'.format(name, remote_name)})
         remote = self._find_remote(remote_name)
         local_branch = self._find_branch(name)
@@ -292,12 +296,48 @@ class Engine(Base):
                 "Pushed new commits to {}".format(remote_name),
             )
 
-    def accept_feature(self):
-        pass
+    def update_from_remote(self, branch_name, remote_name):
+        if self._offline:
+            return None
+        self.fetch_remote(remote_name)
+        remote = self._find_remote(remote_name)
+        outdated_branch = self._find_branch(branch_name)
 
-    def publish_feature(self, name):
+        outdate_branch.checkout()
+        self._repo.git.merge(
+            '{}/{}'.format(remote, outdated_branch),
+        )
+        self.add_to_summary_items(
+            'Updated {} from {}'.format(branch_name, remote_name)
+        )
+
+    def merge_into(self, branch_name, target_branch_name):
+        self.switch_to_branch(target_branch_name)
+        self._repo.git.merge(branch_name)
+        self.add_to_summary(
+            "Merged {} into {}".format(branch_name, target_branch_name),
+        )
+
+    def delete_branch(self, branch_name):
+        self.repo.delete_head(
+            branch_name,
+        )
+        self.add_to_summary_items(
+            "Deleted {} from local repository".format(branch_name),
+        )
+
+        if not self._offline:
+            self.origin.push(
+                branch_name,
+                delete=True,
+            )
+            self.add_to_summary_items(
+                "Deleted {} from {}".format(branch_name, self.origin),
+            )
+
+    def _find_feature_branch_by_name(self, name):
         FEATURE_PREFIX = self.get_prefixes()['feature']
-        # no name means publish the current branch
+        # no name means the current branch
         if name is None:
             name = self.current_branch().name
 
@@ -307,6 +347,38 @@ class Engine(Base):
         )
 
         if self._find_branch(branch_name) is None:
+            return None
+
+        return branch_name
+
+    def accept_feature(
+        self,
+        name,
+        should_delete_branch,
+        should_merge_into_development,
+    ):
+        if name is None:
+            return_branch = self.develop.name
+        else:
+            return_branch = self.current_branch().name
+
+        branch_name = self._find_feature_branch_by_name(name)
+        if branch_name is None:
+            raise NotAFeatureBranch(name)
+        # update development branch with latest from canon
+        self.update_from_remote(self.develop.name, self.canon.name)
+
+        if should_merge_into_development:
+            self.merge_into(branch_name, self.develop.name)
+
+        if should_delete_branch:
+            self.delete_branch(branch_name)
+
+        self.switch_to_branch(return_branch)
+
+    def publish_feature(self, name):
+        branch_name = self._find_feature_branch_by_name(name)
+        if branch_name is None:
             raise NotAFeatureBranch(name)
 
         self.push_to_remote(branch_name, self.origin.name, True)
@@ -314,7 +386,7 @@ class Engine(Base):
         if not self._offline:
             request_results = self.connector.make_request(
                 base_branch_name=self.develop.name,
-                branch_name=name,
+                branch_name=branch_name,
                 remote_name=self.origin.name,
             )
 

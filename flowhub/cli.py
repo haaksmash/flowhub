@@ -180,22 +180,6 @@ class CLI(Base):
             if branch.name.startswith(FEATURE_PREFIX)
         ]
 
-        # flowhub feature abandon ...
-        fabandon = feature_subs.add_parser(
-            'abandon',
-            help="remove a feature branch completely",
-        )
-        fabandon_name = fabandon.add_argument(
-            'name',
-            nargs='?',
-            default=None,
-            help="name of the feature to abandon. If not given, uses current feature",
-        )
-        completers[fabandon_name] = [
-            branch.name.split(FEATURE_PREFIX)[1] for branch in branches
-            if branch.name.startswith(FEATURE_PREFIX)
-        ]
-
         # flowhub feature accepted ...
         faccepted = feature_subs.add_parser(
             'accepted',
@@ -216,9 +200,10 @@ class CLI(Base):
             action='store_true', default=False,
             help="don't delete the accepted feature branch",
         )
-        feature_subs.add_parser(
-            'list',
-            help='list the feature names on this repository',
+        faccepted.add_argument(
+            '--merge',
+            action='store_true', default=False,
+            help="feature should be merged into development branch as well",
         )
 
         self._setup_parser_completers(completers)
@@ -323,6 +308,15 @@ class CLI(Base):
                 )
             except NotAFeatureBranch as error:
                 self._output('{} is not a feature branch. Please provide a feature branch as an argument, or switch to the feature branch you wish to publish.'.format(error.message))
+        elif args.action == 'accepted':
+            try:
+                engine.accept_feature(
+                    name=args.name,
+                    should_delete_branch=not args.no_delete,
+                    should_merge_into_development=not args.merge,
+                )
+            except NotAFeatureBranch as error:
+                self._output('{} is not a feature branch. Please provide a feature branch as an argument, or switch to the feature branch you wish to accept.'.format(error.message))
         else:
             raise RuntimeError("Unimplemented command for features: {}".format(args.action))
 
