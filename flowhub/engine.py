@@ -507,7 +507,7 @@ class Engine(Base):
                     title=title,
                     labels='\n\t[{}]'.format(' '.join(labels)) if labels else '',
                     url=result.url,
-                ),
+                )[1:],
             ),
         )
 
