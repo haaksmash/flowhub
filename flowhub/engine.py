@@ -382,7 +382,8 @@ class Engine(Base):
         if branch_name is None:
             raise NotAFeatureBranch(name)
 
-        self.push_to_remote(branch_name, self.origin.name, True)
+        already_tracking = self._find_branch(branch_name).tracking_branch is not None
+        self.push_to_remote(branch_name, self.origin.name, not already_tracking)
 
         if not self._offline:
             request_results = self.connector.make_request(
