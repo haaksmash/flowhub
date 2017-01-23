@@ -325,6 +325,8 @@ class Engine(Base):
                 "Pushed new commits to {}".format(remote_name),
             )
 
+        return had_new_commits
+
     def update_from_remote(self, branch_name, remote_name):
         if self._offline:
             return None
@@ -431,7 +433,7 @@ class Engine(Base):
             raise HookFailure('pre-feature-publish')
 
         already_tracking = self._find_branch(branch_name).tracking_branch is not None
-        self.push_to_remote(branch_name, self.origin.name, not already_tracking)
+        had_new_commits = self.push_to_remote(branch_name, self.origin.name, not already_tracking)
 
         if not self._offline:
             request_results = self.connector.make_request(
@@ -452,7 +454,7 @@ class Engine(Base):
                             )
                         )[1:],
                     )
-                else:
+                elif had_new_commits:
                     self.add_to_summary_items(
                         textwrap.dedent("""
                             New commits added to existing request
