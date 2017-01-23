@@ -324,7 +324,7 @@ class Engine(Base):
         remote = self._find_remote(remote_name)
         outdated_branch = self._find_branch(branch_name)
 
-        outdate_branch.checkout()
+        outdated_branch.checkout()
         self._repo.git.merge(
             '{}/{}'.format(remote, outdated_branch),
         )
@@ -335,12 +335,12 @@ class Engine(Base):
     def merge_into(self, branch_name, target_branch_name):
         self.switch_to_branch(target_branch_name)
         self._repo.git.merge(branch_name)
-        self.add_to_summary(
+        self.add_to_summary_items(
             "Merged {} into {}".format(branch_name, target_branch_name),
         )
 
     def delete_branch(self, branch_name):
-        self.repo.delete_head(
+        self._repo.delete_head(
             branch_name,
         )
         self.add_to_summary_items(

@@ -72,7 +72,7 @@ class GithubConnector(object):
         return RequestResult(False, 'https://github.com', False)
 
     def close_request(self, branch_name):
-        if self._close_pull_request(branch_name):
+        if self.__close_gh_pull_request(branch_name):
             return RequestResult(True, 'https://github.com', False)
 
         return RequestResult(False, 'https://github.com', False)
@@ -219,6 +219,8 @@ class GithubConnector(object):
 
         return pull_request
 
+    def __close_gh_pull_request(self, branch_name):
+        return True
 
     def _create_issue(self, title, labels):
         pass
