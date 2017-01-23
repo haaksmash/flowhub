@@ -44,6 +44,10 @@ class NeedsAuthorization(StandardError):
     pass
 
 
+class ReleaseExists(StandardError):
+    pass
+
+
 class SummaryLine(namedtuple('SummaryLineParent', ['msg', 'type'])):
     def __str__(self):
         return self.msg
@@ -455,6 +459,50 @@ class Engine(Base):
                 )
 
     def abandon_feature(self):
+        pass
+
+    def start_release(self, name):
+        # git fetch canon
+        # if git branch-exists canon /^release/ then exit 1
+        # git checkout -b release-prefix+release_name canon/develop
+        RELEASE_PREFIX = self.get_prefixes()['release']
+        if self._offline:
+            self.print_at_verbosity({0: 'In offline mode, changes will only be made locally.'})
+            existing_releases = [
+                x for x in self._repo.branches
+                if x.name.startswith(RELEASE_PREFIX)
+            ]
+            base_branch = self.develop.name
+        else:
+            self.fetch_remote(self.canon.name)
+            existing_releases = {
+                x for x in self.canon.refs
+                if x.name.startswith(RELEASE_PREFIX)
+            } | {
+                x for x in self._repo.branches
+                if x.name.startswith(RELEASE_PREFIX)
+            }
+            base_branch = self._find_remote_branch(self.canon.name, self.develop.name)
+
+        if len(existing_releases) != 0:
+            raise ReleaseExists(existing_releases[0])
+
+        branch_name = "{}{}".format(
+            RELEASE_PREFIX,
+            name.replace(RELEASE_PREFIX, ''),
+        )
+        self.print_at_verbosity({0: 'Creating a new release branch...'})
+        self.create_branch(branch_name, base_branch)
+
+        if not self._offline:
+            self.push_to_remote(branch_name, self.canon.name, True)
+
+        self.switch_to_branch(branch_name)
+
+    def stage_release(self):
+        pass
+
+    def publish_release(self):
         pass
 
     def create_issue(self):

@@ -360,11 +360,11 @@ class CLI(Base):
         self.print_at_verbosity({3: 'handling release'})
         engine = self.build_engine(args)
         if args.action == 'start':
-            pass
+            engine.start_release(args.name)
         elif args.action == 'stage':
-            pass
+            self._output("Gosh, sure be nice if this command did anything...")
         elif args.action == 'publish':
-            pass
+            engine.publish_release()
         return engine.get_summary()
 
     def handle_unknown_invocation(self, args):
