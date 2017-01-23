@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import argparse
 import argcomplete
+import subprocess
 
 from flowhub.base import Base
 from flowhub.exceptions import Abort, HookFailure
@@ -59,6 +60,32 @@ class CLI(Base):
 
     def ingest_message(self, msg):
         return self._input(msg)
+
+    def ingest_long_form_message(self, descriptor_file):
+        try:
+            editor_result = subprocess.check_call(
+                "$EDITOR {}".format(descriptor_file.name),
+                shell=True
+            )
+        except OSError:
+            self.print_at_verbosity({2: "Hmm...are you on Windows?"})
+            editor_result = 126
+
+        self.print_at_verbosity({4: 'result of $EDITOR: {}'.format(editor_result)})
+
+        if editor_result == 0:
+            # Re-open the file to get new contents...
+            fnew = open(descriptor_file.name, 'r')
+            # and remove the first line
+            body = fnew.readlines()
+            fnew.close()
+            long_form_succesful = True
+        else:
+            body = self._input(
+                "Description (remember, you can use GitHub markdown):\n"
+            )
+            long_form_succesful = False
+        return body, long_form_successful
 
     def build_engine(self, args):
         try:
