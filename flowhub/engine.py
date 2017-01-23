@@ -19,6 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 from collections import namedtuple
+import os
 import subprocess
 import tempfile
 import textwrap
@@ -28,6 +29,7 @@ import git
 from flowhub.base import Base
 from flowhub.config.configurator import Configurator
 from flowhub.connectors.connector_factory import ConnectorFactory
+from flowhub.exceptions import HookFailure
 
 
 class DuplicateFeature(StandardError):
@@ -48,10 +50,11 @@ class SummaryLine(namedtuple('SummaryLineParent', ['msg', 'type'])):
 
 
 class Engine(Base):
-    def __init__(self, offline, verbosity, repo_directory, cli):
+    def __init__(self, offline, verbosity, repo_directory, cli, skip_hooks):
         self._offline = offline
         self._verbosity = verbosity
         self._cli = cli
+        self._skip_hooks = skip_hooks
 
         self._summary = []
         self._repo = git.Repo(repo_directory)
@@ -63,6 +66,23 @@ class Engine(Base):
 
     def request_output(self, msg):
         self._cli.emit_message(msg)
+
+    def do_hook(self, hook_name, *hook_args):
+        if self._skip_hooks:
+            return True
+
+        try:
+            hook_args = tuple(str(a) for a in hook_args)
+            subprocess.check_call(
+                (os.path.join(self._repo.git_dir, 'hooks', hook_name),) + hook_args,
+            )
+            return True
+        except OSError as e:
+            self.print_at_verbosity({2: "No such hook: {}".format(hook_name)})
+            self.print_at_verbosity({4: "{}".format(e)})
+            return True
+        except subprocess.CalledProcessError:
+            return False
 
     def request_input(self, msg):
         return self._cli.ingest_message(msg)
@@ -249,6 +269,8 @@ class Engine(Base):
         if not self._offline and with_tracking:
             self.push_to_remote(branch_name, self.origin.name, True)
 
+        self.do_hook('post-feature-start', branch_name)
+
     def switch_to_branch(self, identifier):
         branch = self._find_branch(identifier)
 
@@ -391,6 +413,9 @@ class Engine(Base):
         branch_name = self._find_feature_branch_by_name(name)
         if branch_name is None:
             raise NotAFeatureBranch(name)
+
+        if not self.do_hook('pre-feature-publish', branch_name):
+            raise HookFailure('pre-feature-publish')
 
         already_tracking = self._find_branch(branch_name).tracking_branch is not None
         self.push_to_remote(branch_name, self.origin.name, not already_tracking)

@@ -25,7 +25,7 @@ import argparse
 import argcomplete
 
 from flowhub.base import Base
-from flowhub.exceptions import Abort
+from flowhub.exceptions import Abort, HookFailure
 from flowhub.engine import Engine, DuplicateFeature, NeedsAuthorization, NotAFeatureBranch
 from flowhub.utilities import future_proof_print
 
@@ -45,6 +45,7 @@ class CLI(Base):
             verbosity=-1,
             repo_directory='.',
             cli=self,
+            skip_hooks=True,
         )
 
     def emit_message(self, msg):
@@ -60,6 +61,7 @@ class CLI(Base):
                 verbosity=args.verbosity,
                 repo_directory='.',
                 cli=self,
+                skip_hooks=args.no_verify,
             )
         except NeedsAuthorization:
             self._offline_engine.get_authorization()
@@ -308,6 +310,8 @@ class CLI(Base):
                 )
             except NotAFeatureBranch as error:
                 self._output('{} is not a feature branch. Please provide a feature branch as an argument, or switch to the feature branch you wish to publish.'.format(error.message))
+            except HookFailure as error:
+                self._output('operation aborted by hook {}'.format(error.message))
         elif args.action == 'accepted':
             try:
                 engine.accept_feature(
