@@ -485,7 +485,7 @@ class Engine(Base):
             base_branch = self._find_remote_branch(self.canon.name, self.develop.name)
 
         if len(existing_releases) != 0:
-            raise ReleaseExists(existing_releases[0])
+            raise ReleaseExists(existing_releases.pop())
 
         branch_name = "{}{}".format(
             RELEASE_PREFIX,

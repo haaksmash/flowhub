@@ -26,7 +26,13 @@ import argcomplete
 
 from flowhub.base import Base
 from flowhub.exceptions import Abort, HookFailure
-from flowhub.engine import Engine, DuplicateFeature, NeedsAuthorization, NotAFeatureBranch
+from flowhub.engine import (
+    Engine,
+    DuplicateFeature,
+    NeedsAuthorization,
+    NotAFeatureBranch,
+    ReleaseExists,
+)
 from flowhub.utilities import future_proof_print
 
 __version__ = '1.0.0'
@@ -360,7 +366,10 @@ class CLI(Base):
         self.print_at_verbosity({3: 'handling release'})
         engine = self.build_engine(args)
         if args.action == 'start':
-            engine.start_release(args.name)
+            try:
+                engine.start_release(args.name)
+            except ReleaseExists as error:
+                self._output("Please resolve the current release ({}) before starting a new one.".format(error.message))
         elif args.action == 'stage':
             self._output("Gosh, sure be nice if this command did anything...")
         elif args.action == 'publish':
