@@ -40,7 +40,15 @@ class NotAFeatureBranch(StandardError):
     pass
 
 
+class NotAReleaseBranch(StandardError):
+    pass
+
+
 class NeedsAuthorization(StandardError):
+    pass
+
+
+class ReleaseExists(StandardError):
     pass
 
 
@@ -317,6 +325,8 @@ class Engine(Base):
                 "Pushed new commits to {}".format(remote_name),
             )
 
+        return had_new_commits
+
     def update_from_remote(self, branch_name, remote_name):
         if self._offline:
             return None
@@ -339,7 +349,7 @@ class Engine(Base):
             "Merged {} into {}".format(branch_name, target_branch_name),
         )
 
-    def delete_branch(self, branch_name):
+    def delete_branch(self, branch_name, should_delete_from_canon=False):
         self._repo.delete_head(
             branch_name,
         )
@@ -348,12 +358,17 @@ class Engine(Base):
         )
 
         if not self._offline:
-            self.origin.push(
+            if not should_delete_from_canon:
+                remote = self.origin
+            else:
+                remote = self.canon
+
+            remote.push(
                 branch_name,
                 delete=True,
             )
             self.add_to_summary_items(
-                "Deleted {} from {}".format(branch_name, self.origin),
+                "Deleted {} from {}".format(branch_name, remote.name),
             )
 
     def _find_feature_branch_by_name(self, name):
@@ -418,7 +433,7 @@ class Engine(Base):
             raise HookFailure('pre-feature-publish')
 
         already_tracking = self._find_branch(branch_name).tracking_branch is not None
-        self.push_to_remote(branch_name, self.origin.name, not already_tracking)
+        had_new_commits = self.push_to_remote(branch_name, self.origin.name, not already_tracking)
 
         if not self._offline:
             request_results = self.connector.make_request(
@@ -439,7 +454,7 @@ class Engine(Base):
                             )
                         )[1:],
                     )
-                else:
+                elif had_new_commits:
                     self.add_to_summary_items(
                         textwrap.dedent("""
                             New commits added to existing request
@@ -457,44 +472,154 @@ class Engine(Base):
     def abandon_feature(self):
         pass
 
-    def create_issue(self):
-        labels = []
-        title = self.request_input("Title for this issue: ")
+    def start_release(self, name):
+        # git fetch canon
+        # if git branch-exists canon /^release/ then exit 1
+        # git checkout -b release-prefix+release_name canon/develop
+        RELEASE_PREFIX = self.get_prefixes()['release']
+        if self._offline:
+            self.print_at_verbosity({0: 'In offline mode, changes will only be made locally.'})
+            existing_releases = [
+                x for x in self._repo.branches
+                if x.name.startswith(RELEASE_PREFIX)
+            ]
+            base_branch = self.develop.name
+        else:
+            self.fetch_remote(self.canon.name)
+            existing_releases = {
+                x for x in self.canon.refs
+                if x.name.startswith(RELEASE_PREFIX)
+            } | {
+                x for x in self._repo.branches
+                if x.name.startswith(RELEASE_PREFIX)
+            }
+            base_branch = self._find_remote_branch(self.canon.name, self.develop.name)
+
+        if len(existing_releases) != 0:
+            raise ReleaseExists(existing_releases.pop())
+
+        branch_name = "{}{}".format(
+            RELEASE_PREFIX,
+            name.replace(RELEASE_PREFIX, ''),
+        )
+        self.print_at_verbosity({0: 'Creating a new release branch...'})
+        self.create_branch(branch_name, base_branch)
+
+        if not self._offline:
+            self.push_to_remote(branch_name, self.canon.name, True)
+
+        self.switch_to_branch(branch_name)
+        self.do_hook('post-release-start', branch_name)
+
+    def stage_release(self):
+        pass
+
+    def _get_long_form_input(self, file_prompt, input_prompt):
         descriptor_file = tempfile.NamedTemporaryFile(delete=False)
         descriptor_file.file.write(
-            "\n\n# Write your description above. Remember - you can use Github markdown syntax!"
+            "\n\n{}".format(file_prompt)
         )
-
         self.print_at_verbosity({3: 'temp file: {}'.format(descriptor_file.name)})
         descriptor_file.close()
 
-        try:
-            editor_result = subprocess.check_call(
-                "$EDITOR {}".format(descriptor_file.name),
-                shell=True
-            )
-        except OSError:
-            self.print_at_verbosity({2: "Hmm...are you on Windows?"})
-            editor_result = 126
-
-        self.print_at_verbosity({4: 'result of $EDITOR: {}'.format(editor_result)})
-
-        if editor_result == 0:
-            # Re-open the file to get new contents...
-            fnew = open(descriptor_file.name, 'r')
-            # and remove the first line
-            body = fnew.readlines()
-            if body[-1].startswith('# Write your description'):
+        body, long_form_successful = self._cli.ingest_long_form_message(descriptor_file)
+        # a successful long-form body will be a list of strings
+        if long_form_successful:
+            # be cautious here, in case the user removed our hint line
+            # themselves
+            if body[-1].startswith('#'):
                 body = body[:-1]
-
             body = "".join(body)
 
-            fnew.close()
-        else:
-            body = self.request_input(
-                "Description (remember, you can use GitHub markdown):\n"
-            )
+        return body
 
+    def publish_release(self):
+        # git fetch canon
+        # git checkout master
+        # git merge canon/master
+        # git merge --no-ff release/...
+        # git tag ... ...
+        # git checkout develop
+        # git merge canon/develop
+        # git merge --no-ff canon/master
+        # git push canon
+        # git push --tags canon
+        # git branch -d release/...
+        RELEASE_PREFIX = self.get_prefixes()['release']
+        branch_name = self.current_branch().name
+
+        if not branch_name.startswith(RELEASE_PREFIX):
+            raise NotAReleaseBranch(branch_name)
+
+        self.do_hook('pre-release-publish', branch_name)
+
+        if self._offline:
+            self.print_at_verbosity({0: 'In offline mode, changes will only be made locally.'})
+        else:
+            self.fetch_remote(self.canon.name)
+
+        self.master.checkout()
+        self._repo.git.merge(
+            "{}/{}".format(self.canon.name, self.master.name),
+        )
+        self._repo.git.merge(
+            branch_name,
+            no_ff=True,
+        )
+        self.add_to_summary_items(
+            "Branch {} merged into {}".format(branch_name, self.master.name),
+        )
+
+        default_tag_label = branch_name.replace(RELEASE_PREFIX, '')
+        tag_label = self._cli.ingest_message("Tag label [{}]: ".format(default_tag_label)) or default_tag_label
+        tag_description = self._get_long_form_input(
+            "# Write your tag description above.",
+            "Tag message: ",
+        )
+        self.create_tag(self.master.name, tag_label, tag_description)
+
+        self.develop.checkout()
+        self._repo.git.merge(
+            "{}/{}".format(self.canon.name, self.develop.name),
+        )
+        self._repo.git.merge(
+            self.master,
+            no_ff=True,
+        )
+        self.add_to_summary_items(
+            "Branch {} merged into {}".format(
+                self.master.name,
+                self.develop.name,
+            ),
+        )
+
+        if not self._offline:
+            self.canon.push()
+            self.canon.push(tags=True)
+
+        self.delete_branch(branch_name, should_delete_from_canon=not self._offline)
+
+        self.switch_to_branch(self.develop.name)
+
+    def create_tag(self, target_branch_name, label, description):
+        self._repo.create_tag(
+            path=label,
+            ref=self._find_branch(target_branch_name),
+            message=description,
+        )
+
+        self.add_to_summary_items(
+            "New tag ({}) created at {}'s tip.".format(label, target_branch_name),
+        )
+
+    def create_issue(self):
+        labels = []
+        title = self.request_input("Title for this issue: ")
+
+        body = self._get_long_form_input(
+            "# Write your description above. Remember - you can use Github markdown syntax!",
+            "Description (you can use Github markdown syntax):",
+        )
         self.print_at_verbosity({4: 'issue description: {}'.format(body)})
 
         result = self.connector.open_issue(title, body, labels)
@@ -507,7 +632,7 @@ class Engine(Base):
                     title=title,
                     labels='\n\t[{}]'.format(' '.join(labels)) if labels else '',
                     url=result.url,
-                ),
+                )[1:],
             ),
         )
 

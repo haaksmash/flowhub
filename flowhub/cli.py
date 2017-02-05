@@ -23,10 +23,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import argparse
 import argcomplete
+import subprocess
 
 from flowhub.base import Base
 from flowhub.exceptions import Abort, HookFailure
-from flowhub.engine import Engine, DuplicateFeature, NeedsAuthorization, NotAFeatureBranch
+from flowhub.engine import (
+    Engine,
+    DuplicateFeature,
+    NeedsAuthorization,
+    NotAFeatureBranch,
+    ReleaseExists,
+)
 from flowhub.utilities import future_proof_print
 
 __version__ = '1.0.0'
@@ -53,6 +60,32 @@ class CLI(Base):
 
     def ingest_message(self, msg):
         return self._input(msg)
+
+    def ingest_long_form_message(self, descriptor_file):
+        try:
+            editor_result = subprocess.check_call(
+                "$EDITOR {}".format(descriptor_file.name),
+                shell=True
+            )
+        except OSError:
+            self.print_at_verbosity({2: "Hmm...are you on Windows?"})
+            editor_result = 126
+
+        self.print_at_verbosity({4: 'result of $EDITOR: {}'.format(editor_result)})
+
+        if editor_result == 0:
+            # Re-open the file to get new contents...
+            fnew = open(descriptor_file.name, 'r')
+            # and remove the first line
+            body = fnew.readlines()
+            fnew.close()
+            long_form_successful = True
+        else:
+            body = self._input(
+                "Description (remember, you can use GitHub markdown):\n"
+            )
+            long_form_successful = False
+        return body, long_form_successful
 
     def build_engine(self, args):
         try:
@@ -211,7 +244,37 @@ class CLI(Base):
         self._setup_parser_completers(completers)
 
     def _build_release_parser(self, parser):
-        pass
+        release_subs = parser.add_subparsers(dest='action')
+
+        rstart = release_subs.add_parser(
+            'start',
+            help="start a new release branch",
+        )
+        rstart.add_argument(
+            'name',
+            help="name (and tag) of the release branch.",
+        )
+
+        release_subs.add_parser(
+            'stage',
+            help="send a release branch to a staging environment",
+        )
+
+        rpublish = release_subs.add_parser(
+            'publish',
+            help="publish a release branch to production and trunk",
+        )
+        rpublish.add_argument(
+            'name',
+            nargs='?',
+            help="name of release to publish. if not specified, current branch is assumed.",
+        )
+        rpublish.add_argument(
+            '--no-cleanup',
+            action='store_true',
+            default=False,
+            help="do not delete the release branch after a successful publish",
+        )
 
     def _build_hotfix_parser(self, parser):
         pass
@@ -324,6 +387,20 @@ class CLI(Base):
         else:
             raise RuntimeError("Unimplemented command for features: {}".format(args.action))
 
+        return engine.get_summary()
+
+    def handle_release_invocation(self, args):
+        self.print_at_verbosity({3: 'handling release'})
+        engine = self.build_engine(args)
+        if args.action == 'start':
+            try:
+                engine.start_release(args.name)
+            except ReleaseExists as error:
+                self._output("Please resolve the current release ({}) before starting a new one.".format(error.message))
+        elif args.action == 'stage':
+            self._output("Gosh, sure be nice if this command did anything...")
+        elif args.action == 'publish':
+            engine.publish_release()
         return engine.get_summary()
 
     def handle_unknown_invocation(self, args):
