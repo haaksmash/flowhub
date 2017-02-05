@@ -593,10 +593,11 @@ class Engine(Base):
             ),
         )
 
-        self.canon.push()
-        self.canon.push(tags=True)
+        if not self._offline:
+            self.canon.push()
+            self.canon.push(tags=True)
 
-        self.delete_branch(branch_name, should_delete_from_canon=True)
+        self.delete_branch(branch_name, should_delete_from_canon=not self._offline)
 
         self.switch_to_branch(self.develop.name)
 
