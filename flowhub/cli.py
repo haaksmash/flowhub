@@ -79,12 +79,12 @@ class CLI(Base):
             # and remove the first line
             body = fnew.readlines()
             fnew.close()
-            long_form_succesful = True
+            long_form_successful = True
         else:
             body = self._input(
                 "Description (remember, you can use GitHub markdown):\n"
             )
-            long_form_succesful = False
+            long_form_successful = False
         return body, long_form_successful
 
     def build_engine(self, args):
